@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Problem Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 95%;
+            max-width: 1200px;
+            height: 80vh;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .panel {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .left-panel {
+            border-bottom: 1px solid #e0e0e0;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            padding-right: 40px; /* 为省略号预留空间 */
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            min-height: 38px; /* 设置为与输入框相同的高度 */
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+                width: 80%;
+                height: 80vh;
+            }
+            .panel {
+                flex: 1;
+                height: 100%;
+            }
+            .left-panel {
+                border-right: 1px solid #e0e0e0;
+                border-bottom: none;
+            }
+        }
+
+        button {
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        button.generating {
+            background-color: #6c757d; /* 灰色 */
+        }
+
+        button span::after {
+            content: '';
+            display: inline-block;
+            width: 0;
+            overflow: hidden;
+            vertical-align: bottom;
+        }
+
+        button.generating span::after {
+            content: '';
+            animation: ellipsis 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel left-panel">
+            <h1>Math Problem Generator</h1>
+            <label for="grade">Grade:</label>
+            <select id="grade">
+                <option value="6">6th Grade</option>
+                <option value="7">7th Grade</option>
+                <option value="8">8th Grade</option>
+                <option value="9">9th Grade</option>
+                <option value="10">10th Grade</option>
+                <option value="11">11th Grade</option>
+                <option value="12">12th Grade</option>
+            </select>
+
+            <label for="difficulty">Difficulty:</label>
+            <select id="difficulty">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+                <option value="challenging">Challenging</option>
+            </select>
+
+            <label for="number">Number of Problems:</label>
+            <input type="number" id="number" min="1" max="10" value="5">
+
+            <label for="topic">Topic:</label>
+            <input type="text" id="topic" placeholder="e.g., addition, subtraction, multiplication">
+
+            <label for="requirements">Additional Requirements:</label>
+            <input type="text" id="requirements" placeholder="e.g., word problems, step-by-step solutions">
+
+            <button id="generateBtn"><span>Generate</span></button>
+        </div>
+        <div class="panel right-panel">
+            <h2>Generated Problems</h2>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        function generateProblems() {
+            const generateBtn = document.getElementById('generateBtn');
+            const generateBtnText = generateBtn.querySelector('span');
+            const result = document.getElementById('result');
+            const grade = document.getElementById('grade').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const number = document.getElementById('number').value;
+            const topic = document.getElementById('topic').value;
+            const requirements = document.getElementById('requirements').value;
+
+            generateBtn.classList.add('generating');
+            generateBtnText.textContent = 'Generating'; // 只设置一次文本
+            generateBtn.disabled = true;
+
+            fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ grade, difficulty, number, topic, requirements }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                result.textContent = data.problems;
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                result.textContent = 'An error occurred while generating problems. Please try again.';
+            })
+            .finally(() => {
+                generateBtn.classList.remove('generating');
+                generateBtnText.textContent = 'Generate';
+                generateBtn.disabled = false;
+            });
+        }
+
+        // 添加事件监听器以响应 Enter 键
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                document.getElementById('generateBtn').click();
+            }
+        });
+
+        // 将 onclick 事件监听器添加到按钮
+        document.getElementById('generateBtn').addEventListener('click', generateProblems);
+    </script>
+</body>
+</html>
