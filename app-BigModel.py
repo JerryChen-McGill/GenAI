@@ -6,8 +6,8 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# 智谱清言 API endpoint and key
-API_KEY = "fe760163c5256f75c27653c2fd729bec.Zt93rQwt99u8n8zV"
+# 从环境变量获取API密钥
+API_KEY = os.environ.get("API_KEY", "fe760163c5256f75c27653c2fd729bec.Zt93rQwt99u8n8zV")
 API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 
 def call_glm4_api(prompt):
@@ -48,5 +48,7 @@ def generate():
     return jsonify({'problems': problems})
 
 if __name__ == '__main__':
-    # 启动 Flask 应用，监听所有 IP 地址的 5000 端口
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # 获取端口号（云平台通常会提供PORT环境变量）
+    port = int(os.environ.get("PORT", 5000))
+    # 启动 Flask 应用
+    app.run(debug=False, host='0.0.0.0', port=port)
