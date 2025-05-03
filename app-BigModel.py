@@ -2,12 +2,18 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import os
+import sys
 
 app = Flask(__name__)
 CORS(app)
 
-# 从环境变量获取API密钥
-API_KEY = os.environ.get("API_KEY", "fe760163c5256f75c27653c2fd729bec.Zt93rQwt99u8n8zV")
+# 从环境变量获取API密钥，不设置默认值
+API_KEY = os.environ.get("API_KEY")
+if not API_KEY:
+    print("错误: 未设置API_KEY环境变量")
+    print("请设置API_KEY环境变量再运行程序")
+    sys.exit(1)
+
 API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 
 def call_glm4_api(prompt):

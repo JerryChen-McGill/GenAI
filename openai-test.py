@@ -1,7 +1,13 @@
 import requests
+import os
+import sys
 
-# Your OpenAI API key
-api_key = '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'
+# 从环境变量获取OpenAI API密钥
+api_key = os.environ.get('API_KEY')
+if not api_key:
+    print("错误: 未设置API_KEY环境变量")
+    print("请设置API_KEY环境变量再运行程序")
+    sys.exit(1)
 
 # The endpoint for the ChatGPT API
 url = 'https://api.openai.com/v1/chat/completions'

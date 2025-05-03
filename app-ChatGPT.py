@@ -2,12 +2,17 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import os
+import sys
 
 app = Flask(__name__)
 CORS(app)
 
-# Your OpenAI API key
-api_key = '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'
+# 从环境变量获取OpenAI API密钥
+api_key = os.environ.get('API_KEY')
+if not api_key:
+    print("错误: 未设置API_KEY环境变量")
+    print("请设置API_KEY环境变量再运行程序")
+    sys.exit(1)
 
 # Function to call OpenAI API
 def call_chatgpt_api(prompt):
@@ -47,4 +52,7 @@ def generate():
 
 # 运行 Flask 应用
 if __name__ == '__main__':
-    app.run(debug=True)
+    # 获取端口号（云平台通常会提供PORT环境变量）
+    port = int(os.environ.get('PORT', 5000))
+    # 启动 Flask 应用
+    app.run(debug=False, host='0.0.0.0', port=port)
