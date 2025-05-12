@@ -73,22 +73,34 @@ def check_preferences():
 def generate():
     try:
         data = request.json
+        logger.info(f"Received request data: {data}")
+        
         if not data:
+            logger.error("No data provided in request")
             return jsonify({'error': 'No data provided'}), 400
 
         # 验证输入数据
         required_fields = ['grade', 'difficulty', 'number', 'topic']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            error_msg = f'Missing required fields: {", ".join(missing_fields)}'
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 400
 
         # 验证数值范围
-        if not isinstance(data['number'], int) or data['number'] < 1 or data['number'] > 10:
-            return jsonify({'error': 'Number of problems must be between 1 and 10'}), 400
+        try:
+            number = int(data['number'])
+            if number < 1 or number > 10:
+                error_msg = 'Number of problems must be between 1 and 10'
+                logger.error(error_msg)
+                return jsonify({'error': error_msg}), 400
+        except (ValueError, TypeError):
+            error_msg = 'Number of problems must be a valid integer'
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 400
 
         grade = data.get('grade')
         difficulty = data.get('difficulty')
-        number = data.get('number')
         topic = data.get('topic')
         requirements = data.get('requirements', '')
         selected_tags = data.get('selectedTags', [])
@@ -109,10 +121,11 @@ Please format the problems clearly with:
 
 Make the problems engaging and relatable to the student's interests."""
         
+        logger.info(f"Generated prompt: {prompt}")
         problems = call_glm4_api(prompt)
         return jsonify({'problems': problems})
     except Exception as e:
-        logger.error(f"生成问题时发生错误: {str(e)}")
+        logger.error(f"生成问题时发生错误: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':

@@ -277,7 +277,7 @@
             const result = document.getElementById('result');
             const grade = document.getElementById('grade').value;
             const difficulty = document.getElementById('difficulty').value;
-            const number = document.getElementById('number').value;
+            const number = parseInt(document.getElementById('number').value);
             const topic = document.getElementById('topic').value;
             const requirements = document.getElementById('requirements').value;
             const selectedTags = getSelectedTags();
@@ -286,6 +286,16 @@
                 result.textContent = 'Please enter what you want to learn.';
                 return;
             }
+
+            // 添加调试日志
+            console.log('Sending data:', {
+                grade,
+                difficulty,
+                number,
+                topic,
+                requirements,
+                selectedTags
+            });
 
             generateBtn.classList.add('generating');
             generateBtnText.textContent = 'Generating';
@@ -308,7 +318,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
                 }
 
                 const data = await response.json();
