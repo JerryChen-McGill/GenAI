@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math Problem Generator</title>
+    <title>Personalized Learning Partner</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -170,21 +170,27 @@
 <body>
     <div class="container">
         <div class="panel left-panel">
-            <h1>Math Problem Generator</h1>
+            <h1>Personalized Learning Partner</h1>
             
             <label for="topic">I want to learn:</label>
             <input type="text" id="topic" placeholder="e.g., addition, subtraction, multiplication">
 
-            <label>and involving:</label>
+            <label>and I want to involve:</label>
             <div class="tag-container" id="tagContainer">
                 <!-- 标签将通过JavaScript动态添加 -->
             </div>
+            <div class="tag-input-container" id="tagInputContainer" style="display: none; margin-top: 10px;">
+                <input type="text" id="tagInput" placeholder="Type and press Enter to add a tag" style="width: calc(100% - 80px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button id="addTagBtn" style="width: 70px; margin-left: 10px; padding: 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
+            </div>
+            <button id="showTagInputBtn" style="margin-top: 10px; padding: 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Add New Tag</button>
 
             <button class="more-btn" id="moreBtn">More Options</button>
 
             <div class="more-options" id="moreOptions">
                 <label for="grade">Grade:</label>
                 <select id="grade">
+                    <option value="">Select Grade</option>
                     <option value="6">6th Grade</option>
                     <option value="7">7th Grade</option>
                     <option value="8">8th Grade</option>
@@ -196,6 +202,7 @@
 
                 <label for="difficulty">Difficulty:</label>
                 <select id="difficulty">
+                    <option value="">Select Difficulty</option>
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
@@ -203,7 +210,7 @@
                 </select>
 
                 <label for="number">Number of Problems:</label>
-                <input type="number" id="number" min="1" max="10" value="5">
+                <input type="number" id="number" min="1" max="10" value="1">
 
                 <label for="requirements">Additional Requirements:</label>
                 <input type="text" id="requirements" placeholder="e.g., word problems, step-by-step solutions">
@@ -212,7 +219,7 @@
             <button id="generateBtn"><span>Generate</span></button>
         </div>
         <div class="panel right-panel">
-            <h2>Generated Problems</h2>
+            <h2>Your Learning Task</h2>
             <div id="result"></div>
         </div>
     </div>
@@ -235,33 +242,23 @@
         // 从localStorage加载用户偏好
         function loadUserPreferences() {
             const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
-            const tags = [];
-            
-            // 添加兴趣爱好
-            if (preferences.question1) {
-                tags.push(...preferences.question1.split(',').map(tag => tag.trim()));
-            }
-            // 添加感兴趣的话题
-            if (preferences.question2) {
-                tags.push(...preferences.question2.split(',').map(tag => tag.trim()));
-            }
-            // 添加喜欢的内容类型
-            if (preferences.question3) {
-                tags.push(...preferences.question3.split(',').map(tag => tag.trim()));
-            }
-
-            // 创建标签
             const tagContainer = document.getElementById('tagContainer');
             tagContainer.innerHTML = '';
-            tags.forEach(tag => {
-                const tagElement = document.createElement('div');
-                tagElement.className = 'tag';
-                tagElement.textContent = tag;
-                tagElement.onclick = () => {
-                    tagElement.classList.toggle('selected');
-                };
-                tagContainer.appendChild(tagElement);
-            });
+            
+            // 从question1加载标签
+            if (preferences.question1) {
+                const tags = preferences.question1.split(',').map(tag => tag.trim());
+                tags.forEach(tag => {
+                    const tagElement = document.createElement('div');
+                    tagElement.className = 'tag';
+                    tagElement.textContent = tag;
+                    tagElement.onclick = () => {
+                        tagElement.classList.toggle('selected');
+                        saveTagsToLocalStorage();
+                    };
+                    tagContainer.appendChild(tagElement);
+                });
+            }
         }
 
         // 获取选中的标签
@@ -345,9 +342,88 @@
             this.textContent = moreOptions.classList.contains('show') ? 'Less Options' : 'More Options';
         });
 
-        // 添加事件监听器以响应 Enter 键
+        // 修改标签输入相关函数
+        function addTag(tagText) {
+            if (!tagText.trim()) return;
+            
+            const tagContainer = document.getElementById('tagContainer');
+            const tagElement = document.createElement('div');
+            tagElement.className = 'tag';
+            tagElement.textContent = tagText.trim();
+            tagElement.onclick = () => {
+                tagElement.classList.toggle('selected');
+                saveTagsToLocalStorage();
+            };
+            tagContainer.appendChild(tagElement);
+            
+            // 保存到localStorage
+            saveTagsToLocalStorage();
+            
+            // 清空输入框并隐藏
+            const tagInput = document.getElementById('tagInput');
+            tagInput.value = '';
+            document.getElementById('tagInputContainer').style.display = 'none';
+            document.getElementById('showTagInputBtn').style.display = 'block';
+        }
+
+        function saveTagsToLocalStorage() {
+            const tags = Array.from(document.querySelectorAll('.tag'))
+                .map(tag => tag.textContent);
+            
+            // 获取现有的用户偏好
+            const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+            
+            // 更新标签到question1（兴趣爱好）
+            preferences.question1 = tags.join(', ');
+            
+            // 保存回localStorage
+            localStorage.setItem('userPreferences', JSON.stringify(preferences));
+        }
+
+        // 初始化标签输入功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const tagInput = document.getElementById('tagInput');
+            const addTagBtn = document.getElementById('addTagBtn');
+            const showTagInputBtn = document.getElementById('showTagInputBtn');
+            const tagInputContainer = document.getElementById('tagInputContainer');
+
+            // 显示标签输入框
+            showTagInputBtn.addEventListener('click', () => {
+                tagInputContainer.style.display = 'block';
+                showTagInputBtn.style.display = 'none';
+                tagInput.focus();
+            });
+
+            // 添加按钮点击事件
+            addTagBtn.addEventListener('click', () => {
+                addTag(tagInput.value);
+            });
+
+            // 回车键添加标签
+            tagInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation(); // 阻止事件冒泡
+                    addTag(tagInput.value);
+                }
+            });
+
+            // 点击其他地方时隐藏输入框
+            document.addEventListener('click', (e) => {
+                if (!tagInputContainer.contains(e.target) && e.target !== showTagInputBtn) {
+                    if (tagInput.value.trim()) {
+                        addTag(tagInput.value);
+                    } else {
+                        tagInputContainer.style.display = 'none';
+                        showTagInputBtn.style.display = 'block';
+                    }
+                }
+            });
+        });
+
+        // 修改全局回车事件处理
         document.addEventListener('keydown', function(event) {
-            if (event.key === 'Enter') {
+            if (event.key === 'Enter' && !document.getElementById('tagInputContainer').contains(event.target)) {
                 document.getElementById('generateBtn').click();
             }
         });
