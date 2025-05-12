@@ -245,20 +245,44 @@
             const tagContainer = document.getElementById('tagContainer');
             tagContainer.innerHTML = '';
             
-            // 从question1加载标签
+            // 从所有问题加载标签
+            const allTags = new Set(); // 使用Set来去重
+            
+            // 从question1加载标签（兴趣爱好）
             if (preferences.question1) {
-                const tags = preferences.question1.split(',').map(tag => tag.trim());
-                tags.forEach(tag => {
-                    const tagElement = document.createElement('div');
-                    tagElement.className = 'tag';
-                    tagElement.textContent = tag;
-                    tagElement.onclick = () => {
-                        tagElement.classList.toggle('selected');
-                        saveTagsToLocalStorage();
-                    };
-                    tagContainer.appendChild(tagElement);
+                preferences.question1.split(',').forEach(tag => {
+                    const trimmedTag = tag.trim();
+                    if (trimmedTag) allTags.add(trimmedTag);
                 });
             }
+            
+            // 从question2加载标签（感兴趣的话题）
+            if (preferences.question2) {
+                preferences.question2.split(',').forEach(tag => {
+                    const trimmedTag = tag.trim();
+                    if (trimmedTag) allTags.add(trimmedTag);
+                });
+            }
+            
+            // 从question3加载标签（喜欢的内容类型）
+            if (preferences.question3) {
+                preferences.question3.split(',').forEach(tag => {
+                    const trimmedTag = tag.trim();
+                    if (trimmedTag) allTags.add(trimmedTag);
+                });
+            }
+
+            // 创建所有标签
+            allTags.forEach(tag => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag';
+                tagElement.textContent = tag;
+                tagElement.onclick = () => {
+                    tagElement.classList.toggle('selected');
+                    saveTagsToLocalStorage();
+                };
+                tagContainer.appendChild(tagElement);
+            });
         }
 
         // 获取选中的标签
@@ -373,8 +397,10 @@
             // 获取现有的用户偏好
             const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
             
-            // 更新标签到question1（兴趣爱好）
+            // 更新所有问题的标签
             preferences.question1 = tags.join(', ');
+            preferences.question2 = tags.join(', ');
+            preferences.question3 = tags.join(', ');
             
             // 保存回localStorage
             localStorage.setItem('userPreferences', JSON.stringify(preferences));
