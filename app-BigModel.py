@@ -1,60 +1,122 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
 import requests
 import os
 import sys
+import logging
+from dotenv import load_dotenv
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 加载.env文件中的环境变量
+load_dotenv('APIkey.env')
 
 app = Flask(__name__)
-CORS(app)
+# 配置CORS，允许所有来源
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-# 从环境变量获取API密钥，不设置默认值
+# 从环境变量获取API密钥
 API_KEY = os.environ.get("API_KEY")
 if not API_KEY:
-    print("错误: 未设置API_KEY环境变量")
-    print("请设置API_KEY环境变量再运行程序")
+    logger.error("错误: 未设置API_KEY环境变量")
     sys.exit(1)
 
 API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 
 def call_glm4_api(prompt):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}"
-    }
-    
-    data = {
-        "model": "glm-4-flash",
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": False
-    }
-    
-    response = requests.post(API_URL, headers=headers, json=data)
-    
-    if response.status_code == 200:
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {API_KEY}"
+        }
+        
+        data = {
+            "model": "glm-4-flash",
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False
+        }
+        
+        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
+        response.raise_for_status()
+        
         return response.json()['choices'][0]['message']['content']
-    else:
-        return f"Error: {response.status_code} - {response.text}"
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API调用错误: {str(e)}")
+        return f"Error: API request failed - {str(e)}"
+    except Exception as e:
+        logger.error(f"未知错误: {str(e)}")
+        return f"Error: An unexpected error occurred - {str(e)}"
 
 @app.route('/')
 def index():
+    return send_from_directory('.', 'personalization.html')
+
+@app.route('/main')
+def main():
     return send_from_directory('.', 'index.html')
+
+@app.route('/personalization')
+def personalization():
+    return send_from_directory('.', 'personalization.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('.', path)
+
+@app.route('/check-preferences')
+def check_preferences():
+    return jsonify({'hasPreferences': True})
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    data = request.json
-    grade = data.get('grade')
-    difficulty = data.get('difficulty')
-    number = data.get('number')
-    topic = data.get('topic')
-    requirements = data.get('requirements')
-    
-    prompt = f"Generate {number} math problems for {grade}th grade students about {topic}. The difficulty level should be {difficulty}. Additional requirements: {requirements}"
-    problems = call_glm4_api(prompt)
-    
-    return jsonify({'problems': problems})
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # 验证输入数据
+        required_fields = ['grade', 'difficulty', 'number', 'topic']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        # 验证数值范围
+        if not isinstance(data['number'], int) or data['number'] < 1 or data['number'] > 10:
+            return jsonify({'error': 'Number of problems must be between 1 and 10'}), 400
+
+        grade = data.get('grade')
+        difficulty = data.get('difficulty')
+        number = data.get('number')
+        topic = data.get('topic')
+        requirements = data.get('requirements', '')
+        selected_tags = data.get('selectedTags', [])
+        
+        # 构建包含标签的提示词
+        tags_context = ""
+        if selected_tags:
+            tags_context = f" The problems should incorporate these interests: {', '.join(selected_tags)}."
+        
+        prompt = f"""Generate {number} math problems for {grade}th grade students about {topic}. 
+The difficulty level should be {difficulty}.{tags_context}
+Additional requirements: {requirements}
+
+Please format the problems clearly with:
+1. Problem statement
+2. Step-by-step solution
+3. Final answer
+
+Make the problems engaging and relatable to the student's interests."""
+        
+        problems = call_glm4_api(prompt)
+        return jsonify({'problems': problems})
+    except Exception as e:
+        logger.error(f"生成问题时发生错误: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    # 获取端口号（云平台通常会提供PORT环境变量）
     port = int(os.environ.get("PORT", 5000))
-    # 启动 Flask 应用
-    app.run(debug=False, host='0.0.0.0', port=port)
+    # 生产环境中禁用debug模式
+    debug_mode = os.environ.get("FLASK_ENV") == "development"
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

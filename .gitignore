@@ -16,12 +16,29 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-# 环境变量文件
+# Virtual Environment
+venv/
+ENV/
+
+# Environment Variables
 .env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 环境变量文件
 .env.local
 .env.development
 .env.production
@@ -29,16 +46,11 @@ var/
 env/
 venv/
 ENV/
+APIkey.env
 
 # 密钥和敏感信息
 *.pem
 *.key
 secrets.json
 api_keys.txt
-
-# 编辑器和IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store 
+.env.* 

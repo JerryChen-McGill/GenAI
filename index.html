@@ -42,6 +42,7 @@
             display: block;
             margin-top: 10px;
             color: #555;
+            font-weight: bold;
         }
         input, select {
             width: 100%;
@@ -62,7 +63,7 @@
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s;
-            padding-right: 40px; /* 为省略号预留空间 */
+            padding-right: 40px;
         }
         button:hover {
             background-color: #0056b3;
@@ -74,7 +75,7 @@
             border-radius: 4px;
             padding: 10px;
             margin-top: 10px;
-            min-height: 38px; /* 设置为与输入框相同的高度 */
+            min-height: 38px;
         }
         
         @media (min-width: 768px) {
@@ -99,7 +100,7 @@
         }
 
         button.generating {
-            background-color: #6c757d; /* 灰色 */
+            background-color: #6c757d;
         }
 
         button span::after {
@@ -114,39 +115,99 @@
             content: '';
             animation: ellipsis 1.5s infinite;
         }
+
+        /* 新增样式 */
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 16px;
+            padding: 4px 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tag.selected {
+            background-color: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+
+        .more-options {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .more-options.show {
+            display: block;
+        }
+
+        .more-btn {
+            background-color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .more-btn:hover {
+            background-color: #5a6268;
+        }
+
+        @keyframes ellipsis {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="panel left-panel">
             <h1>Math Problem Generator</h1>
-            <label for="grade">Grade:</label>
-            <select id="grade">
-                <option value="6">6th Grade</option>
-                <option value="7">7th Grade</option>
-                <option value="8">8th Grade</option>
-                <option value="9">9th Grade</option>
-                <option value="10">10th Grade</option>
-                <option value="11">11th Grade</option>
-                <option value="12">12th Grade</option>
-            </select>
-
-            <label for="difficulty">Difficulty:</label>
-            <select id="difficulty">
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-                <option value="challenging">Challenging</option>
-            </select>
-
-            <label for="number">Number of Problems:</label>
-            <input type="number" id="number" min="1" max="10" value="5">
-
-            <label for="topic">Topic:</label>
+            
+            <label for="topic">I want to learn:</label>
             <input type="text" id="topic" placeholder="e.g., addition, subtraction, multiplication">
 
-            <label for="requirements">Additional Requirements:</label>
-            <input type="text" id="requirements" placeholder="e.g., word problems, step-by-step solutions">
+            <label>and involving:</label>
+            <div class="tag-container" id="tagContainer">
+                <!-- 标签将通过JavaScript动态添加 -->
+            </div>
+
+            <button class="more-btn" id="moreBtn">More Options</button>
+
+            <div class="more-options" id="moreOptions">
+                <label for="grade">Grade:</label>
+                <select id="grade">
+                    <option value="6">6th Grade</option>
+                    <option value="7">7th Grade</option>
+                    <option value="8">8th Grade</option>
+                    <option value="9">9th Grade</option>
+                    <option value="10">10th Grade</option>
+                    <option value="11">11th Grade</option>
+                    <option value="12">12th Grade</option>
+                </select>
+
+                <label for="difficulty">Difficulty:</label>
+                <select id="difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                    <option value="challenging">Challenging</option>
+                </select>
+
+                <label for="number">Number of Problems:</label>
+                <input type="number" id="number" min="1" max="10" value="5">
+
+                <label for="requirements">Additional Requirements:</label>
+                <input type="text" id="requirements" placeholder="e.g., word problems, step-by-step solutions">
+            </div>
 
             <button id="generateBtn"><span>Generate</span></button>
         </div>
@@ -157,7 +218,60 @@
     </div>
 
     <script>
-        function generateProblems() {
+        // 配置API基础URL
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:5000'  // 本地开发环境
+            : '';  // 生产环境（Render）使用相对路径
+
+        // 检查是否有用户偏好数据
+        function checkUserPreferences() {
+            const preferences = localStorage.getItem('userPreferences');
+            if (!preferences) {
+                window.location.href = '/';
+                return;
+            }
+        }
+
+        // 从localStorage加载用户偏好
+        function loadUserPreferences() {
+            const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+            const tags = [];
+            
+            // 添加兴趣爱好
+            if (preferences.question1) {
+                tags.push(...preferences.question1.split(',').map(tag => tag.trim()));
+            }
+            // 添加感兴趣的话题
+            if (preferences.question2) {
+                tags.push(...preferences.question2.split(',').map(tag => tag.trim()));
+            }
+            // 添加喜欢的内容类型
+            if (preferences.question3) {
+                tags.push(...preferences.question3.split(',').map(tag => tag.trim()));
+            }
+
+            // 创建标签
+            const tagContainer = document.getElementById('tagContainer');
+            tagContainer.innerHTML = '';
+            tags.forEach(tag => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag';
+                tagElement.textContent = tag;
+                tagElement.onclick = () => {
+                    tagElement.classList.toggle('selected');
+                };
+                tagContainer.appendChild(tagElement);
+            });
+        }
+
+        // 获取选中的标签
+        function getSelectedTags() {
+            const selectedTags = Array.from(document.querySelectorAll('.tag.selected'))
+                .map(tag => tag.textContent);
+            return selectedTags;
+        }
+
+        async function generateProblems() {
             const generateBtn = document.getElementById('generateBtn');
             const generateBtnText = generateBtn.querySelector('span');
             const result = document.getElementById('result');
@@ -166,32 +280,59 @@
             const number = document.getElementById('number').value;
             const topic = document.getElementById('topic').value;
             const requirements = document.getElementById('requirements').value;
+            const selectedTags = getSelectedTags();
+
+            if (!topic) {
+                result.textContent = 'Please enter what you want to learn.';
+                return;
+            }
 
             generateBtn.classList.add('generating');
-            generateBtnText.textContent = 'Generating'; // 只设置一次文本
+            generateBtnText.textContent = 'Generating';
             generateBtn.disabled = true;
 
-            fetch('/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ grade, difficulty, number, topic, requirements }),
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        grade, 
+                        difficulty, 
+                        number, 
+                        topic, 
+                        requirements,
+                        selectedTags 
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
                 result.textContent = data.problems;
-            })
-            .catch((error) => {
+            } catch (error) {
                 console.error('Error:', error);
-                result.textContent = 'An error occurred while generating problems. Please try again.';
-            })
-            .finally(() => {
+                result.textContent = `Error: ${error.message}. Please make sure the server is running and try again.`;
+            } finally {
                 generateBtn.classList.remove('generating');
                 generateBtnText.textContent = 'Generate';
                 generateBtn.disabled = false;
-            });
+            }
         }
+
+        // 更多选项按钮点击事件
+        document.getElementById('moreBtn').addEventListener('click', function() {
+            const moreOptions = document.getElementById('moreOptions');
+            moreOptions.classList.toggle('show');
+            this.textContent = moreOptions.classList.contains('show') ? 'Less Options' : 'More Options';
+        });
 
         // 添加事件监听器以响应 Enter 键
         document.addEventListener('keydown', function(event) {
@@ -202,6 +343,12 @@
 
         // 将 onclick 事件监听器添加到按钮
         document.getElementById('generateBtn').addEventListener('click', generateProblems);
+
+        // 页面加载时检查用户偏好并加载
+        window.onload = function() {
+            checkUserPreferences();
+            loadUserPreferences();
+        };
     </script>
 </body>
 </html>

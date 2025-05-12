@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personalization - Math Problem Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .question {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            color: #555;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 10px;
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .skip-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+        .next-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .skip-btn:hover {
+            background-color: #5a6268;
+        }
+        .next-btn:hover {
+            background-color: #0056b3;
+        }
+        .progress {
+            margin-bottom: 20px;
+            text-align: center;
+            color: #666;
+        }
+        .note {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Personalization</h1>
+        <div class="progress">Question 1 of 3</div>
+        
+        <div class="question" id="question1">
+            <label>What are your hobbies? (3-5)</label>
+            <textarea placeholder="Enter your hobbies, separated by commas"></textarea>
+            <div class="note">Example: reading, swimming, photography</div>
+        </div>
+
+        <div class="question" id="question2" style="display: none;">
+            <label>What topics are you always interested in discussing? (3-5)</label>
+            <textarea placeholder="Enter topics you're interested in, separated by commas"></textarea>
+            <div class="note">Example: technology, art, science</div>
+        </div>
+
+        <div class="question" id="question3" style="display: none;">
+            <label>What types of books and videos do you usually enjoy? (3-5)</label>
+            <textarea placeholder="Enter your preferred content types, separated by commas"></textarea>
+            <div class="note">Example: mystery novels, educational videos, documentaries</div>
+        </div>
+
+        <div class="button-group">
+            <button class="skip-btn" onclick="skipQuestion()">Skip</button>
+            <button class="next-btn" onclick="nextQuestion()">Next</button>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestion = 1;
+        const totalQuestions = 3;
+        const answers = {};
+
+        function updateProgress() {
+            document.querySelector('.progress').textContent = `Question ${currentQuestion} of ${totalQuestions}`;
+        }
+
+        function saveAnswer() {
+            const textarea = document.querySelector(`#question${currentQuestion} textarea`);
+            answers[`question${currentQuestion}`] = textarea.value;
+            // 保存到localStorage
+            localStorage.setItem('userPreferences', JSON.stringify(answers));
+        }
+
+        function nextQuestion() {
+            saveAnswer();
+            if (currentQuestion < totalQuestions) {
+                document.querySelector(`#question${currentQuestion}`).style.display = 'none';
+                currentQuestion++;
+                document.querySelector(`#question${currentQuestion}`).style.display = 'block';
+                updateProgress();
+            } else {
+                showCompletionMessage();
+            }
+        }
+
+        function skipQuestion() {
+            if (currentQuestion < totalQuestions) {
+                document.querySelector(`#question${currentQuestion}`).style.display = 'none';
+                currentQuestion++;
+                document.querySelector(`#question${currentQuestion}`).style.display = 'block';
+                updateProgress();
+            } else {
+                showCompletionMessage();
+            }
+        }
+
+        function showCompletionMessage() {
+            const container = document.querySelector('.container');
+            container.innerHTML = `
+                <h1>Thank You!</h1>
+                <p style="text-align: center; margin: 20px 0;">
+                    Your preferences have been saved to your device. You can modify them later to enhance your personalized experience.
+                </p>
+                <div style="text-align: center;">
+                    <button class="next-btn" onclick="window.location.href='/main'" style="width: 200px;">
+                        Continue to Math Problem Generator
+                    </button>
+                </div>
+            `;
+        }
+
+        // 页面加载时检查是否有已保存的答案
+        window.onload = function() {
+            const savedAnswers = localStorage.getItem('userPreferences');
+            if (savedAnswers) {
+                const parsedAnswers = JSON.parse(savedAnswers);
+                // 恢复已保存的答案
+                for (let i = 1; i <= totalQuestions; i++) {
+                    const questionId = `question${i}`;
+                    if (parsedAnswers[questionId]) {
+                        const textarea = document.querySelector(`#${questionId} textarea`);
+                        if (textarea) {
+                            textarea.value = parsedAnswers[questionId];
+                        }
+                    }
+                }
+            }
+        };
+
+        // Initialize
+        updateProgress();
+    </script>
+</body>
+</html> 
