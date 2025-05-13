@@ -1,0 +1,252 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 95%;
+    max-width: 1200px;
+    height: 80vh;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.panel {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.left-panel {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+h1, h2 {
+    text-align: center;
+    color: #333;
+    margin-top: 0;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+    color: #555;
+    font-weight: bold;
+}
+
+input, select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-top: 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    padding-right: 40px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#result {
+    white-space: pre-wrap;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+    min-height: 38px;
+}
+
+/* 添加 Markdown 样式 */
+#result h1, #result h2, #result h3, #result h4, #result h5, #result h6 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    font-weight: bold;
+}
+
+#result h1 { font-size: 2em; }
+#result h2 { font-size: 1.5em; }
+#result h3 { font-size: 1.17em; }
+
+#result p {
+    margin: 0.5em 0;
+}
+
+#result ul, #result ol {
+    margin: 0.5em 0;
+    padding-left: 2em;
+}
+
+#result code {
+    background-color: #f0f0f0;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+#result pre {
+    background-color: #f0f0f0;
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+#result blockquote {
+    border-left: 4px solid #ddd;
+    margin: 0.5em 0;
+    padding-left: 1em;
+    color: #666;
+}
+
+@media (min-width: 768px) {
+    .container {
+        flex-direction: row;
+        width: 80%;
+        height: 80vh;
+    }
+    .panel {
+        flex: 1;
+        height: 100%;
+    }
+    .left-panel {
+        border-right: 1px solid #e0e0e0;
+        border-bottom: none;
+    }
+}
+
+button {
+    position: relative;
+    transition: background-color 0.3s;
+}
+
+button.generating {
+    background-color: #6c757d;
+}
+
+button span::after {
+    content: '';
+    display: inline-block;
+    width: 0;
+    overflow: hidden;
+    vertical-align: bottom;
+}
+
+button.generating span::after {
+    content: '';
+    animation: ellipsis 1.5s infinite;
+}
+
+/* 标签相关样式 */
+.tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.tag {
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 16px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.tag.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.more-options {
+    display: none;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.more-options.show {
+    display: block;
+}
+
+.more-btn {
+    background-color: #6c757d;
+    margin-top: 10px;
+}
+
+.more-btn:hover {
+    background-color: #5a6268;
+}
+
+/* 问题部分样式 */
+.problem-section {
+    margin-bottom: 20px;
+}
+
+.hint-section, .solution-section {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.hint-section.show, .solution-section.show {
+    display: block;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.action-button {
+    padding: 8px 16px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.action-button:hover {
+    background-color: #5a6268;
+}
+
+.action-button.active {
+    background-color: #007bff;
+}
+
+@keyframes ellipsis {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+} 

@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personalized Learning Partner</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        // 确保 marked 可用
+        if (typeof marked === 'undefined') {
+            console.error('Marked library failed to load');
+        }
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -76,6 +84,47 @@
             padding: 10px;
             margin-top: 10px;
             min-height: 38px;
+        }
+        
+        /* 添加 Markdown 样式 */
+        #result h1, #result h2, #result h3, #result h4, #result h5, #result h6 {
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            font-weight: bold;
+        }
+        
+        #result h1 { font-size: 2em; }
+        #result h2 { font-size: 1.5em; }
+        #result h3 { font-size: 1.17em; }
+        
+        #result p {
+            margin: 0.5em 0;
+        }
+        
+        #result ul, #result ol {
+            margin: 0.5em 0;
+            padding-left: 2em;
+        }
+        
+        #result code {
+            background-color: #f0f0f0;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        #result pre {
+            background-color: #f0f0f0;
+            padding: 1em;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        
+        #result blockquote {
+            border-left: 4px solid #ddd;
+            margin: 0.5em 0;
+            padding-left: 1em;
+            color: #666;
         }
         
         @media (min-width: 768px) {
@@ -165,6 +214,48 @@
             50% { content: '..'; }
             75% { content: '...'; }
         }
+
+        /* 添加问题部分样式 */
+        .problem-section {
+            margin-bottom: 20px;
+        }
+
+        .hint-section, .solution-section {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+
+        .hint-section.show, .solution-section.show {
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-button {
+            padding: 8px 16px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .action-button:hover {
+            background-color: #5a6268;
+        }
+
+        .action-button.active {
+            background-color: #007bff;
+        }
     </style>
 </head>
 <body>
@@ -221,6 +312,12 @@
         <div class="panel right-panel">
             <h2>Your Learning Task</h2>
             <div id="result"></div>
+            <div class="action-buttons">
+                <button class="action-button" id="hintBtn">Show Hints</button>
+                <button class="action-button" id="solutionBtn">Show Solution</button>
+            </div>
+            <div id="hintSection" class="hint-section"></div>
+            <div id="solutionSection" class="solution-section"></div>
         </div>
     </div>
 
@@ -348,7 +445,58 @@
                     throw new Error(data.error);
                 }
 
-                result.textContent = data.problems;
+                // 修改 Markdown 渲染部分
+                try {
+                    if (typeof marked === 'undefined') {
+                        throw new Error('Marked library is not loaded');
+                    }
+                    
+                    // 显示问题部分
+                    const problemSection = document.createElement('div');
+                    problemSection.className = 'problem-section';
+                    problemSection.innerHTML = marked.parse(data.problem);
+                    result.innerHTML = '';
+                    result.appendChild(problemSection);
+
+                    // 设置提示部分
+                    const hintSection = document.getElementById('hintSection');
+                    if (data.hints) {
+                        hintSection.innerHTML = marked.parse(data.hints);
+                    }
+
+                    // 设置解答部分（包含步骤和答案）
+                    const solutionSection = document.getElementById('solutionSection');
+                    if (data.solution || data.answer) {
+                        let solutionContent = '';
+                        if (data.solution) {
+                            solutionContent += '### Step-by-Step Solution\n' + data.solution;
+                        }
+                        if (data.answer) {
+                            solutionContent += '\n\n### Final Answer\n' + data.answer;
+                        }
+                        solutionSection.innerHTML = marked.parse(solutionContent);
+                    }
+
+                    // 设置按钮事件
+                    const hintBtn = document.getElementById('hintBtn');
+                    const solutionBtn = document.getElementById('solutionBtn');
+
+                    hintBtn.onclick = function() {
+                        hintSection.classList.toggle('show');
+                        this.classList.toggle('active');
+                        this.textContent = hintSection.classList.contains('show') ? 'Hide Hints' : 'Show Hints';
+                    };
+
+                    solutionBtn.onclick = function() {
+                        solutionSection.classList.toggle('show');
+                        this.classList.toggle('active');
+                        this.textContent = solutionSection.classList.contains('show') ? 'Hide Solution' : 'Show Solution';
+                    };
+
+                } catch (markdownError) {
+                    console.error('Markdown parsing error:', markdownError);
+                    result.textContent = data.problems; // 降级为纯文本显示
+                }
             } catch (error) {
                 console.error('Error:', error);
                 result.textContent = `Error: ${error.message}. Please make sure the server is running and try again.`;

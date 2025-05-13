@@ -1,69 +1,52 @@
-from flask import Flask, request, jsonify, send_from_directory, redirect
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import requests
 import os
 import sys
 import logging
 from dotenv import load_dotenv
+import re
+
+# 1. 先加载dotenv
+dotenv_path = os.path.join(os.path.dirname(__file__), '../APIkey.env')
+print("加载dotenv路径：", dotenv_path)
+load_dotenv(dotenv_path)
+print("API_KEY from env:", os.environ.get("API_KEY"))
+
+# 2. 再import依赖API_KEY的模块
+from api_glm4 import call_glm4_api
+# from api_chatgpt import call_chatgpt_api  # 以后可加
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 加载.env文件中的环境变量
-load_dotenv('APIkey.env')
+# 指定前端静态文件目录
+FRONTEND_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend'))
+print("FRONTEND_FOLDER:", FRONTEND_FOLDER)
 
-app = Flask(__name__)
-# 配置CORS，允许所有来源
+app = Flask(__name__, static_folder=FRONTEND_FOLDER, template_folder=FRONTEND_FOLDER)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# 从环境变量获取API密钥
-API_KEY = os.environ.get("API_KEY")
-if not API_KEY:
+# 检查API_KEY
+if not os.environ.get("API_KEY"):
     logger.error("错误: 未设置API_KEY环境变量")
     sys.exit(1)
 
-API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-
-def call_glm4_api(prompt):
-    try:
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {API_KEY}"
-        }
-        
-        data = {
-            "model": "glm-4-flash",
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False
-        }
-        
-        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
-        response.raise_for_status()
-        
-        return response.json()['choices'][0]['message']['content']
-    except requests.exceptions.RequestException as e:
-        logger.error(f"API调用错误: {str(e)}")
-        return f"Error: API request failed - {str(e)}"
-    except Exception as e:
-        logger.error(f"未知错误: {str(e)}")
-        return f"Error: An unexpected error occurred - {str(e)}"
-
 @app.route('/')
 def index():
-    return send_from_directory('.', 'personalization.html')
+    return send_from_directory(app.static_folder, 'personalization.html')
 
 @app.route('/main')
 def main():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/personalization')
 def personalization():
-    return send_from_directory('.', 'personalization.html')
+    return send_from_directory(app.static_folder, 'personalization.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    return send_from_directory('.', path)
+    return send_from_directory(app.static_folder, path)
 
 @app.route('/check-preferences')
 def check_preferences():
@@ -74,6 +57,7 @@ def generate():
     try:
         data = request.json
         logger.info(f"Received request data: {data}")
+        print("收到/generate请求，参数：", data)
         
         if not data:
             logger.error("No data provided in request")
@@ -115,21 +99,64 @@ The difficulty level should be {difficulty}.{tags_context}
 Additional requirements: {requirements}
 
 Please format the problems clearly with:
-1. Problem statement
-2. Step-by-step solution
-3. Final answer
+### Problem Statement
+[Your problem statement here]
+
+### Hints
+[Your hints here]
+
+### Step-by-Step Solution
+[Your step-by-step solution here]
+
+### Final Answer
+[Your final answer here]
 
 Make the problems engaging and relatable to the student's interests."""
         
         logger.info(f"Generated prompt: {prompt}")
-        problems = call_glm4_api(prompt)
-        return jsonify({'problems': problems})
+
+        # 选择API（这里可以根据前端传参或配置切换）
+        api_type = data.get('api_type', 'glm4')
+        if api_type == 'glm4':
+            response = call_glm4_api(prompt)
+        # elif api_type == 'chatgpt':
+        #     response = call_chatgpt_api(prompt)
+        else:
+            return jsonify({'error': 'Unknown API type'}), 400
+
+        # 分割响应内容
+        parts = {
+            'problem': '',
+            'hints': '',
+            'solution': '',
+            'answer': ''
+        }
+        
+        # 使用正则表达式分割内容
+        problem_match = re.search(r'### Problem Statement\s*(.*?)(?=### Hints|$)', response, re.DOTALL)
+        if problem_match:
+            parts['problem'] = problem_match.group(1).strip()
+        hints_match = re.search(r'### Hints\s*(.*?)(?=### Step-by-Step Solution|$)', response, re.DOTALL)
+        if hints_match:
+            parts['hints'] = hints_match.group(1).strip()
+        solution_match = re.search(r'### Step-by-Step Solution\s*(.*?)(?=### Final Answer|$)', response, re.DOTALL)
+        if solution_match:
+            parts['solution'] = solution_match.group(1).strip()
+        answer_match = re.search(r'### Final Answer\s*(.*?)$', response, re.DOTALL)
+        if answer_match:
+            parts['answer'] = answer_match.group(1).strip()
+        
+        return jsonify({
+            'problem': parts['problem'],
+            'hints': parts['hints'],
+            'solution': parts['solution'],
+            'answer': parts['answer']
+        })
     except Exception as e:
         logger.error(f"生成问题时发生错误: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    # 生产环境中禁用debug模式
     debug_mode = os.environ.get("FLASK_ENV") == "development"
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
