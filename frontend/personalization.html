@@ -4,93 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personalization - Math Problem Generator</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-            width: 100%;
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .question {
-            margin-bottom: 25px;
-        }
-        label {
-            display: block;
-            color: #555;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            resize: vertical;
-            min-height: 80px;
-            margin-bottom: 10px;
-        }
-        .button-group {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        .skip-btn {
-            background-color: #6c757d;
-            color: white;
-        }
-        .next-btn {
-            background-color: #007bff;
-            color: white;
-        }
-        button:hover {
-            opacity: 0.9;
-        }
-        .skip-btn:hover {
-            background-color: #5a6268;
-        }
-        .next-btn:hover {
-            background-color: #0056b3;
-        }
-        .progress {
-            margin-bottom: 20px;
-            text-align: center;
-            color: #666;
-        }
-        .note {
-            font-size: 14px;
-            color: #666;
-            font-style: italic;
-            margin-top: 5px;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <div class="personalization-container">
         <h1>Personalization</h1>
         <div class="progress">Question 1 of 3</div>
         
@@ -129,19 +46,32 @@
 
         function saveAnswer() {
             const textarea = document.querySelector(`#question${currentQuestion} textarea`);
-            answers[`question${currentQuestion}`] = textarea.value;
+            const answer = textarea.value.trim();
+            answers[`question${currentQuestion}`] = answer;
+            
+            console.log(`Saving answer for question ${currentQuestion}:`, answer);
+            console.log('Current answers object:', answers);
+            
             // 保存到localStorage
-            localStorage.setItem('userPreferences', JSON.stringify(answers));
+            try {
+                localStorage.setItem('userPreferences', JSON.stringify(answers));
+                console.log('Successfully saved to localStorage');
+            } catch (error) {
+                console.error('Error saving to localStorage:', error);
+            }
         }
 
         function nextQuestion() {
+            console.log('nextQuestion called, currentQuestion:', currentQuestion);
             saveAnswer();
             if (currentQuestion < totalQuestions) {
                 document.querySelector(`#question${currentQuestion}`).style.display = 'none';
                 currentQuestion++;
                 document.querySelector(`#question${currentQuestion}`).style.display = 'block';
                 updateProgress();
+                console.log('Moved to question:', currentQuestion);
             } else {
+                console.log('All questions completed, showing completion message');
                 showCompletionMessage();
             }
         }
@@ -158,18 +88,36 @@
         }
 
         function showCompletionMessage() {
-            const container = document.querySelector('.container');
+            const container = document.querySelector('.personalization-container');
             container.innerHTML = `
                 <h1>Thank You!</h1>
                 <p style="text-align: center; margin: 20px 0;">
                     Your preferences have been saved to your device. You can modify them later to enhance your personalized experience.
                 </p>
-                <div style="text-align: center;">
-                    <button class="next-btn" onclick="window.location.href='/main'" style="width: 200px;">
+                <div class="completion-button-container">
+                    <button class="next-btn completion-button" onclick="goToMain()">
                         Continue to Math Problem Generator
                     </button>
                 </div>
             `;
+        }
+
+        function goToMain() {
+            try {
+                console.log('Attempting to navigate to /main...');
+                // 尝试多种跳转方式
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    // 本地开发环境
+                    window.location.href = '/main';
+                } else {
+                    // 生产环境
+                    window.location.href = '/main';
+                }
+            } catch (error) {
+                console.error('Navigation error:', error);
+                // 备用方案：直接跳转
+                window.location.replace('/main');
+            }
         }
 
         // 页面加载时检查是否有已保存的答案
