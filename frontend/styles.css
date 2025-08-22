@@ -338,6 +338,7 @@ button.generating span::after {
     flex-wrap: wrap;
     gap: var(--spacing-sm);
     margin-top: var(--spacing-md);
+    align-items: center;
 }
 
 .tag {
@@ -351,6 +352,30 @@ button.generating span::after {
     font-weight: 500;
     color: var(--text-secondary);
     user-select: none;
+}
+
+.add-tag-btn {
+    background: var(--background-light);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 32px;
+}
+
+.add-tag-btn:hover {
+    background: var(--border-light);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-small);
 }
 
 .tag:hover {
@@ -372,13 +397,71 @@ button.generating span::after {
     box-shadow: var(--shadow-medium);
 }
 
+/* 更多选项链接样式 */
+.more-options-link {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+    transition: all var(--transition-normal);
+    user-select: none;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 2px;
+    font-weight: 500;
+}
+
+.more-options-link:hover {
+    color: var(--text-primary);
+    text-decoration-color: var(--text-secondary);
+}
+
+/* 标签输入容器样式 */
+.tag-input-container {
+    display: none;
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--background-light);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-medium);
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.tag-input-container input {
+    flex: 1;
+    margin: 0;
+}
+
+.tag-input-container button {
+    margin: 0;
+    width: auto;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--success-green);
+    color: white;
+    border: none;
+    border-radius: var(--radius-small);
+    font-weight: 500;
+    transition: all var(--transition-normal);
+}
+
+.tag-input-container button:hover {
+    background: #28a745;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-small);
+}
+
 /* 更多选项样式 */
 .more-options {
     display: none;
-    margin-top: var(--spacing-lg);
-    padding-top: var(--spacing-lg);
-    border-top: 1px solid var(--border-light);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-lg);
+    background: var(--background-light);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-medium);
     animation: slideDown var(--transition-normal) ease-out;
+    box-shadow: var(--shadow-small);
 }
 
 .more-options.show {
@@ -394,15 +477,6 @@ button.generating span::after {
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-.more-btn {
-    background: var(--secondary-gray);
-    margin-top: var(--spacing-md);
-}
-
-.more-btn:hover {
-    background: var(--secondary-gray-hover);
 }
 
 /* 问题部分样式 */

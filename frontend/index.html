@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personalized Learning Partner</title>
+    <title>What you want to learn?</title>
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <script>
@@ -17,23 +17,13 @@
 <body>
     <div class="container">
         <div class="panel left-panel">
-            <h1>Personalized Learning Partner</h1>
+            <h1>What you want to learn?</h1>
             
-            <label for="topic">I want to learn:</label>
+            <h3 for="topic">I want to learn:</h3>
             <input type="text" id="topic" placeholder="e.g., addition, subtraction, multiplication">
 
-            <label>and I want to involve:</label>
-            <div class="tag-container" id="tagContainer">
-                <!-- 标签将通过JavaScript动态添加 -->
-            </div>
-            <div class="tag-input-container" id="tagInputContainer" style="display: none; margin-top: 10px;">
-                <input type="text" id="tagInput" placeholder="Type and press Enter to add a tag" style="width: calc(100% - 80px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <button id="addTagBtn" style="width: 70px; margin-left: 10px; padding: 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
-            </div>
-            <button id="showTagInputBtn" style="margin-top: 10px; padding: 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Add New Tag</button>
-
-            <button class="more-btn" id="moreBtn">More Options</button>
-
+            <div class="more-options-link" id="moreBtn">More Options</div>
+            
             <div class="more-options" id="moreOptions">
                 <label for="grade">Grade:</label>
                 <select id="grade">
@@ -62,11 +52,21 @@
                 <label for="requirements">Additional Requirements:</label>
                 <input type="text" id="requirements" placeholder="e.g., word problems, step-by-step solutions">
             </div>
+            
+            <h3>and I want to involve:</h3>
+            <div class="tag-container" id="tagContainer">
+                <!-- 标签将通过JavaScript动态添加 -->
+            </div>
+            <div class="tag-input-container" id="tagInputContainer">
+                <input type="text" id="tagInput" placeholder="Type and press Enter to add a tag">
+                <button id="addTagBtn">Add</button>
+            </div>
+            <button id="showTagInputBtn" class="add-tag-btn">+</button>
 
             <button id="generateBtn"><span>Generate</span></button>
         </div>
         <div class="panel right-panel">
-            <h2>Your Learning Task</h2>
+            <h1>Your Learning Task</h1>
             <div id="result"></div>
             <div class="action-buttons">
                 <button class="action-button" id="hintBtn">Show Hints</button>
@@ -285,11 +285,18 @@
             }
         }
 
-        // 更多选项按钮点击事件
+        // 更多选项链接点击事件
         document.getElementById('moreBtn').addEventListener('click', function() {
             const moreOptions = document.getElementById('moreOptions');
-            moreOptions.classList.toggle('show');
-            this.textContent = moreOptions.classList.contains('show') ? 'Less Options' : 'More Options';
+            const isExpanded = moreOptions.classList.contains('show');
+            
+            if (isExpanded) {
+                moreOptions.classList.remove('show');
+                this.textContent = 'More Options';
+            } else {
+                moreOptions.classList.add('show');
+                this.textContent = 'Less Options';
+            }
         });
 
         // 修改标签输入相关函数
