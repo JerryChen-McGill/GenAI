@@ -5,141 +5,700 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personalization - Math Problem Generator</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- 
+        ============================================
+        Firebase SDK 引入
+        ============================================
+        引入 Firebase SDK 用于认证检查
+    -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <!-- Firebase 配置 -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- 
+        ============================================
+        Vue 3 CDN 引入
+        ============================================
+        使用 unpkg CDN 引入 Vue 3，这样不需要构建工具，适合学习和快速开发
+        生产环境建议使用构建工具（如 Vite）来优化性能
+    -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body>
-    <div class="personalization-container">
-        <h1>Personalization</h1>
-        <div class="progress">Question 1 of 3</div>
-        
-        <div class="question" id="question1">
-            <label>What are your hobbies? (3-5)</label>
-            <textarea placeholder="Enter your hobbies, separated by commas"></textarea>
-            <div class="note">Example: reading, swimming, photography</div>
-        </div>
-
-        <div class="question" id="question2" style="display: none;">
-            <label>What topics are you always interested in discussing? (3-5)</label>
-            <textarea placeholder="Enter topics you're interested in, separated by commas"></textarea>
-            <div class="note">Example: technology, art, science</div>
-        </div>
-
-        <div class="question" id="question3" style="display: none;">
-            <label>What types of books and videos do you usually enjoy? (3-5)</label>
-            <textarea placeholder="Enter your preferred content types, separated by commas"></textarea>
-            <div class="note">Example: mystery novels, educational videos, documentaries</div>
-        </div>
-
-        <div class="button-group">
-            <button class="skip-btn" onclick="skipQuestion()">Skip</button>
-            <button class="next-btn" onclick="nextQuestion()">Next</button>
-        </div>
-    </div>
+    <!-- 
+        ============================================
+        Vue 应用挂载点
+        ============================================
+        id="app" 是 Vue 应用的根元素
+        Vue 会控制这个元素及其内部的所有内容
+        所有 Vue 模板语法都会在这个元素内生效
+    -->
+    <div id="app"></div>
 
     <script>
-        let currentQuestion = 1;
-        const totalQuestions = 3;
-        const answers = {};
+        /**
+         * ============================================
+         * Vue 3 Composition API 学习指南
+         * ============================================
+         * 
+         * 这个文件展示了 Vue 3 的核心概念：
+         * 
+         * 1. createApp() - 创建 Vue 应用实例
+         * 2. setup() - Composition API 的入口函数
+         * 3. ref() - 创建响应式的基本类型数据（字符串、数字、布尔值）
+         * 4. reactive() - 创建响应式的对象和数组
+         * 5. computed() - 计算属性（基于响应式数据自动计算，有缓存）
+         * 6. onMounted() - 生命周期钩子（组件挂载后执行）
+         * 7. 模板语法 - v-if, v-else, v-model, @click 等
+         */
 
-        function updateProgress() {
-            document.querySelector('.progress').textContent = `Question ${currentQuestion} of ${totalQuestions}`;
-        }
+        // ============================================
+        // 1. 从 Vue 中解构需要的 API
+        // ============================================
+        // createApp: 创建 Vue 应用
+        // ref: 创建响应式的基本类型数据
+        // reactive: 创建响应式的对象
+        // computed: 创建计算属性
+        // onMounted: 生命周期钩子（组件挂载后）
+        const { createApp, ref, reactive, computed, onMounted } = Vue;
 
-        function saveAnswer() {
-            const textarea = document.querySelector(`#question${currentQuestion} textarea`);
-            const answer = textarea.value.trim();
-            answers[`question${currentQuestion}`] = answer;
+        // ============================================
+        // 2. 定义 Vue 组件
+        // ============================================
+        const PersonalizationApp = {
+            /**
+             * ============================================
+             * setup() 函数 - Composition API 的核心
+             * ============================================
+             * 
+             * setup() 是 Composition API 的入口点
+             * 
+             * 特点：
+             * - 在组件创建之前执行
+             * - 用于设置组件的响应式数据、计算属性、方法等
+             * - 必须返回一个对象，对象中的属性和方法可以在模板中使用
+             * - 在 setup() 中，this 不可用（这是 Vue 3 的设计）
+             * 
+             * 为什么使用 setup()？
+             * - 更好的 TypeScript 支持
+             * - 更好的逻辑复用（可以提取为组合式函数）
+             * - 更清晰的代码组织
+             */
+            setup() {
+                // ============================================
+                // 3. 响应式数据定义
+                // ============================================
+                
+                /**
+                 * ref() - 创建响应式的基本类型数据
+                 * 
+                 * 语法：const variable = ref(initialValue)
+                 * 
+                 * 特点：
+                 * - 返回一个 ref 对象，需要通过 .value 访问实际值
+                 * - 在模板中会自动解包，不需要 .value
+                 * - 当值改变时，Vue 会自动更新相关的 DOM
+                 * 
+                 * 使用场景：
+                 * - 字符串、数字、布尔值等基本类型
+                 * - 也可以用于对象，但通常用 reactive() 更合适
+                 * 
+                 * 示例：
+                 * const count = ref(0);
+                 * console.log(count.value); // 在 JS 中需要 .value
+                 * count.value = 1; // 修改值
+                 * // 在模板中：{{ count }} 会自动解包，显示 1
+                 */
+                const currentQuestion = ref(1); // 当前问题编号（1-3）
+                const totalQuestions = 3; // 总问题数（常量，不需要响应式）
+                
+                /**
+                 * 独立的完成状态标记
+                 * 
+                 * 使用独立的 ref 来标记是否完成，而不是通过 currentQuestion 的值来判断
+                 * 这样逻辑更清晰：当用户完成最后一题时，设置 isCompleted.value = true
+                 * 
+                 * 为什么这样做？
+                 * - 避免将 currentQuestion 设置为 4（超出范围的值）
+                 * - 逻辑更清晰：完成状态是独立的，不依赖于问题编号
+                 * - 更容易理解和维护
+                 */
+                const isCompleted = ref(false); // 是否完成所有问题
+
+                /**
+                 * reactive() - 创建响应式的对象
+                 * 
+                 * 语法：const obj = reactive({ key: value })
+                 * 
+                 * 特点：
+                 * - 直接返回响应式对象，不需要 .value
+                 * - 适合用于对象和数组
+                 * - 嵌套的对象也是响应式的
+                 * - 修改属性会自动触发视图更新
+                 * 
+                 * 使用场景：
+                 * - 对象、数组等复杂数据结构
+                 * - 需要多个相关数据组合在一起
+                 * 
+                 * 示例：
+                 * const user = reactive({ name: 'John', age: 20 });
+                 * user.name = 'Jane'; // 直接修改，自动触发更新
+                 * 
+                 * ref() vs reactive() 选择：
+                 * - ref(): 基本类型（string, number, boolean）
+                 * - reactive(): 对象、数组
+                 */
+                const answers = reactive({
+                    question1: '',
+                    question2: '',
+                    question3: ''
+                });
+
+                // ============================================
+                // 4. 计算属性（Computed Properties）
+                // ============================================
+                
+                /**
+                 * computed() - 创建计算属性
+                 * 
+                 * 语法：const computedValue = computed(() => { return ... })
+                 * 
+                 * 特点：
+                 * - 基于响应式数据自动计算
+                 * - 有缓存，只有依赖的数据改变时才重新计算
+                 * - 返回一个 ref 对象（在模板中自动解包）
+                 * - 性能优化：避免不必要的重复计算
+                 * 
+                 * 使用场景：
+                 * - 格式化数据（如日期格式化）
+                 * - 过滤/筛选数据
+                 * - 基于多个数据计算新值
+                 * - 条件判断（如是否完成、是否显示等）
+                 * 
+                 * 计算属性 vs 方法：
+                 * - 计算属性：有缓存，只有依赖改变时才计算
+                 * - 方法：每次调用都执行，没有缓存
+                 * 
+                 * 示例：
+                 * const fullName = computed(() => firstName.value + ' ' + lastName.value);
+                 * // 只有当 firstName 或 lastName 改变时，才会重新计算
+                 */
+                const progressText = computed(() => {
+                    // 这个函数会在 currentQuestion 或 totalQuestions 改变时自动重新计算
+                    // 返回格式化的进度文本
+                    return `Question ${currentQuestion.value} of ${totalQuestions}`;
+                });
+
+                /**
+                 * 注意：isCompleted 现在是一个 ref，而不是计算属性
+                 * 我们会在 nextQuestion 和 skipQuestion 中直接设置它的值
+                 * 这样逻辑更清晰，不需要通过修改 currentQuestion 的值来判断是否完成
+                 */
+
+                // ============================================
+                // 5. 方法定义
+                // ============================================
+                
+                /**
+                 * 保存当前问题的答案
+                 * 
+                 * 注意：
+                 * - 由于使用了 v-model，answers 对象已经自动同步了用户输入
+                 * - 这里只需要将数据保存到 localStorage 即可
+                 * - 不需要手动获取 DOM 元素（这是 Vue 的优势）
+                 * 
+                 * Vue 的响应式系统优势：
+                 * - v-model 自动同步表单值到响应式数据
+                 * - 不需要手动操作 DOM
+                 * - 代码更简洁，逻辑更清晰
+                 */
+                const saveAnswer = () => {
+                    // 获取当前问题的答案（已经通过 v-model 自动同步）
+                    const questionKey = `question${currentQuestion.value}`;
+                    const answer = answers[questionKey];
+                    
+                    console.log(`保存问题 ${currentQuestion.value} 的答案:`, answer);
+                    console.log('当前所有答案:', answers);
             
-            console.log(`Saving answer for question ${currentQuestion}:`, answer);
-            console.log('Current answers object:', answers);
-            
-            // 保存到localStorage
+                    // 保存到 localStorage（持久化存储，刷新页面后数据不丢失）
             try {
                 localStorage.setItem('userPreferences', JSON.stringify(answers));
-                console.log('Successfully saved to localStorage');
+                        console.log('成功保存到 localStorage');
             } catch (error) {
-                console.error('Error saving to localStorage:', error);
+                        console.error('保存到 localStorage 失败:', error);
             }
-        }
+                };
 
-        function nextQuestion() {
-            console.log('nextQuestion called, currentQuestion:', currentQuestion);
+                /**
+                 * 下一个问题
+                 * 
+                 * 注意：
+                 * - 修改 ref 的值需要使用 .value
+                 * - 修改后，Vue 会自动检测变化并更新视图
+                 * - 相关的计算属性（如 progressText）也会自动重新计算
+                 */
+                const nextQuestion = () => {
+                    console.log('nextQuestion 被调用，当前问题:', currentQuestion.value);
+                    
+                    // 保存当前答案
             saveAnswer();
-            if (currentQuestion < totalQuestions) {
-                document.querySelector(`#question${currentQuestion}`).style.display = 'none';
-                currentQuestion++;
-                document.querySelector(`#question${currentQuestion}`).style.display = 'block';
-                updateProgress();
-                console.log('Moved to question:', currentQuestion);
+                    
+                    // 如果还有下一个问题，切换到下一个
+                    if (currentQuestion.value < totalQuestions) {
+                        // 修改 ref 的值，触发视图更新
+                        // Vue 会自动更新相关的 DOM 和计算属性
+                        currentQuestion.value++;
+                        console.log('切换到问题:', currentQuestion.value);
             } else {
-                console.log('All questions completed, showing completion message');
-                showCompletionMessage();
+                        // 所有问题完成（当前是最后一题）
+                        // 设置完成状态为 true，显示完成页面
+                        isCompleted.value = true;
+                        console.log('所有问题完成，显示完成页面');
             }
-        }
+                };
 
-        function skipQuestion() {
-            if (currentQuestion < totalQuestions) {
-                document.querySelector(`#question${currentQuestion}`).style.display = 'none';
-                currentQuestion++;
-                document.querySelector(`#question${currentQuestion}`).style.display = 'block';
-                updateProgress();
+                /**
+                 * 跳过当前问题
+                 * 
+                 * 直接切换到下一个问题，不保存当前答案
+                 * 如果是最后一题，直接标记为完成
+                 */
+                const skipQuestion = () => {
+                    if (currentQuestion.value < totalQuestions) {
+                        currentQuestion.value++;
             } else {
-                showCompletionMessage();
-            }
-        }
-
-        function showCompletionMessage() {
-            const container = document.querySelector('.personalization-container');
-            container.innerHTML = `
-                <h1>Thank You!</h1>
-                <p style="text-align: center; margin: 20px 0;">
-                    Your preferences have been saved to your device. You can modify them later to enhance your personalized experience.
-                </p>
-                <div class="completion-button-container">
-                    <button class="next-btn completion-button" onclick="goToMain()">
-                        Continue to Math Problem Generator
-                    </button>
-                </div>
-            `;
-        }
-
-        function goToMain() {
-            try {
-                console.log('Attempting to navigate to /main...');
-                // 尝试多种跳转方式
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    // 本地开发环境
-                    window.location.href = '/main';
-                } else {
-                    // 生产环境
-                    window.location.href = '/main';
-                }
-            } catch (error) {
-                console.error('Navigation error:', error);
-                // 备用方案：直接跳转
-                window.location.replace('/main');
-            }
-        }
-
-        // 页面加载时检查是否有已保存的答案
-        window.onload = function() {
-            const savedAnswers = localStorage.getItem('userPreferences');
-            if (savedAnswers) {
-                const parsedAnswers = JSON.parse(savedAnswers);
-                // 恢复已保存的答案
-                for (let i = 1; i <= totalQuestions; i++) {
-                    const questionId = `question${i}`;
-                    if (parsedAnswers[questionId]) {
-                        const textarea = document.querySelector(`#${questionId} textarea`);
-                        if (textarea) {
-                            textarea.value = parsedAnswers[questionId];
-                        }
+                        // 如果是最后一题，直接标记为完成
+                        isCompleted.value = true;
+                        console.log('跳过最后一题，显示完成页面');
                     }
-                }
-            }
+                };
+
+                /**
+                 * 跳转到主页面
+                 * 
+                 * 注意：这不是 Vue 的功能，而是原生的 window.location
+                 * 在 Vue Router 中，应该使用 router.push() 来导航
+                 */
+                const goToMain = () => {
+                    try {
+                        console.log('尝试跳转到 /main...');
+                        // 判断是本地开发环境还是生产环境
+                        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                            window.location.href = '/main';
+                        } else {
+                            window.location.href = '/main';
+                        }
+                    } catch (error) {
+                        console.error('跳转错误:', error);
+                        window.location.replace('/main');
+                    }
+                };
+
+                // ============================================
+                // 6. 生命周期钩子（Lifecycle Hooks）
+                // ============================================
+                
+                /**
+                 * onMounted() - 组件挂载后执行
+                 * 
+                 * 生命周期钩子说明：
+                 * Vue 组件的生命周期包括以下阶段：
+                 * 
+                 * 1. onBeforeMount: 挂载前（DOM 还未创建）
+                 * 2. onMounted: 挂载后（DOM 已创建，可以访问 DOM 元素）⭐ 最常用
+                 * 3. onBeforeUpdate: 更新前（数据改变，但 DOM 还未更新）
+                 * 4. onUpdated: 更新后（DOM 已更新）
+                 * 5. onBeforeUnmount: 卸载前（组件即将被销毁）
+                 * 6. onUnmounted: 卸载后（组件已被销毁）
+                 * 
+                 * 使用场景：
+                 * - 从 localStorage 加载数据
+                 * - 初始化第三方库
+                 * - 设置事件监听器
+                 * - 发送 API 请求获取数据
+                 * 
+                 * 注意：
+                 * - onMounted 中可以安全地访问 DOM 元素
+                 * - 在 setup() 中直接访问 DOM 可能获取不到（因为 DOM 还未创建）
+                 */
+                onMounted(() => {
+                    /**
+                     * 使用 onAuthStateChanged 监听器检查认证状态
+                     * 
+                     * 为什么使用监听器而不是直接检查 currentUser？
+                     * - 页面刚加载时，Firebase 可能还在检查认证状态
+                     * - onAuthStateChanged 会在认证状态确定后触发
+                     * - 更可靠，确保获取到最新的认证状态
+                     */
+                    const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                        if (!user) {
+                            // 用户未登录，重定向到登录页面
+                            console.log('用户未登录，重定向到登录页面');
+                            window.location.href = '/login';
+                            return;
+                        }
+                        
+                        // 用户已登录，继续加载页面内容
+                        console.log('用户已登录:', user.email);
+                        console.log('用户 ID:', user.uid);
+                        
+                        // 从 localStorage 加载已保存的答案
+                        const savedAnswers = localStorage.getItem('userPreferences');
+                        if (savedAnswers) {
+                            try {
+                                const parsedAnswers = JSON.parse(savedAnswers);
+                                console.log('加载的答案:', parsedAnswers);
+                                
+                                // 将加载的数据合并到响应式对象中
+                                // 注意：需要逐个赋值，直接替换会失去响应式
+                                // 这是因为 reactive() 创建的对象是响应式的，但新对象不是
+                                Object.keys(parsedAnswers).forEach(key => {
+                                    if (answers.hasOwnProperty(key)) {
+                                        answers[key] = parsedAnswers[key];
+                                    }
+                                });
+                                
+                                console.log('答案已加载到响应式对象:', answers);
+                            } catch (error) {
+                                console.error('解析 localStorage 数据失败:', error);
+                            }
+                        }
+                    });
+                    
+                    /**
+                     * 注意：在组件卸载时应该取消监听
+                     * 但在单页应用中，通常不需要取消
+                     * 如果需要取消，可以在 onUnmounted 中调用：
+                     * 
+                     * onUnmounted(() => {
+                     *     unsubscribe();
+                     * });
+                     */
+                });
+
+                // ============================================
+                // 7. 返回模板需要使用的数据和方法
+                // ============================================
+                
+                /**
+                 * setup() 函数必须返回一个对象
+                 * 
+                 * 返回的对象中的属性和方法可以在模板中使用：
+                 * - 响应式数据：ref 和 reactive 对象
+                 * - 计算属性：computed 返回的值
+                 * - 方法：定义的函数
+                 * 
+                 * 注意：
+                 * - ref 对象在模板中会自动解包，不需要 .value
+                 * - reactive 对象可以直接使用
+                 * - 计算属性会自动解包
+                 * 
+                 * 示例：
+                 * 在模板中使用：{{ currentQuestion }} 会自动显示值，不需要 .value
+                 * 在模板中使用：{{ progressText }} 会自动显示计算后的值
+                 * 在模板中使用：@click="nextQuestion" 会调用这个方法
+                 */
+                return {
+                    // 响应式数据
+                    currentQuestion,      // ref，模板中自动解包
+                    totalQuestions,       // 常量
+                    answers,              // reactive 对象
+                    isCompleted,          // ref，标记是否完成，模板中自动解包
+                    
+                    // 计算属性
+                    progressText,         // computed，模板中自动解包
+                    
+                    // 方法
+                    nextQuestion,
+                    skipQuestion,
+                    goToMain
+                };
+            },
+
+            /**
+             * ============================================
+             * template - 组件的模板
+             * ============================================
+             * 
+             * Vue 模板语法说明：
+             * 
+             * 1. 插值表达式 {{ }}
+             *    - {{ variable }} 显示变量值
+             *    - {{ computed }} 显示计算属性
+             *    - 支持 JavaScript 表达式：{{ count + 1 }}
+             * 
+             * 2. 指令（Directives）- 以 v- 开头
+             *    - v-if / v-else-if / v-else: 条件渲染（完全移除/添加 DOM）
+             *    - v-show: 条件显示（通过 CSS display 控制）
+             *    - v-for: 列表渲染
+             *    - v-model: 双向数据绑定（表单元素）
+             *    - v-bind: 绑定属性（简写 :）
+             *    - v-on: 绑定事件（简写 @）
+             *    - v-text: 设置文本内容
+             *    - v-html: 设置 HTML 内容（注意 XSS 风险）
+             * 
+             * 3. 事件处理
+             *    - @click="handler" 点击事件
+             *    - @input="handler" 输入事件
+             *    - @submit.prevent="handler" 提交事件（.prevent 阻止默认行为）
+             *    - 修饰符：.prevent, .stop, .once, .enter 等
+             * 
+             * 4. 条件渲染对比
+             *    - v-if: 适合切换频率低的情况（性能更好，完全移除 DOM）
+             *    - v-show: 适合切换频率高的情况（初始渲染成本更高，只是隐藏）
+             * 
+             * 5. 双向数据绑定 v-model
+             *    - 自动同步表单元素的值到响应式数据
+             *    - 用户输入 → 自动更新数据
+             *    - 数据改变 → 自动更新表单显示
+             * 
+             * 6. 模板中的响应式
+             *    - 所有在 setup() 中返回的数据都是响应式的
+             *    - 数据改变 → 模板自动更新
+             *    - 不需要手动操作 DOM
+             */
+            template: `
+                <div class="personalization-container">
+                    <!-- 
+                        ============================================
+                        条件渲染：完成页面
+                        ============================================
+                        v-if="isCompleted" 表示当 isCompleted 为 true 时显示
+                        isCompleted 是一个 ref，在模板中会自动解包，所以直接使用即可
+                        v-if 会完全移除/添加 DOM 元素，适合切换频率低的情况
+                    -->
+                    <template v-if="isCompleted">
+                        <!-- 完成页面 -->
+                        <h1>Thank You!</h1>
+                        <p style="text-align: center; margin: 20px 0;">
+                            Your preferences have been saved to your device. 
+                            You can modify them later to enhance your personalized experience.
+                        </p>
+                        <div class="completion-button-container">
+                            <!-- 
+                                @click 是事件监听器，等同于 v-on:click
+                                @click="goToMain" 表示点击时调用 goToMain 方法
+                            -->
+                            <button 
+                                class="next-btn completion-button" 
+                                @click="goToMain"
+                            >
+                                Continue to Math Problem Generator
+                            </button>
+                        </div>
+                    </template>
+
+                    <!-- 
+                        ============================================
+                        条件渲染：问题表单
+                        ============================================
+                        v-else 必须紧跟在 v-if 或 v-else-if 后面
+                        当 isCompleted 为 false 时显示
+                    -->
+                    <template v-else>
+                        <h1>Personalization</h1>
+                        
+                        <!-- 
+                            ============================================
+                            插值表达式：显示计算属性
+                            ============================================
+                            {{ }} 是插值表达式，用于显示数据
+                            progressText 是计算属性，会自动显示计算后的值
+                            当 currentQuestion 改变时，这里会自动更新
+                        -->
+                        <div class="progress">{{ progressText }}</div>
+                        
+                        <!-- 
+                            ============================================
+                            问题 1：兴趣爱好
+                            ============================================
+                            v-if="currentQuestion === 1" 表示只在 currentQuestion 为 1 时显示
+                            v-model="answers.question1" 双向绑定，自动同步输入值到 answers.question1
+                            
+                            v-model 的工作原理：
+                            - 用户输入 → 自动更新 answers.question1
+                            - answers.question1 改变 → 自动更新 textarea 显示
+                            - 不需要手动获取 DOM 元素或设置值
+                        -->
+                        <div 
+                            class="question" 
+                            v-if="currentQuestion === 1"
+                            id="question1"
+                        >
+                            <label>What are your hobbies? (3-5)</label>
+                            <!-- 
+                                v-model 双向数据绑定
+                                - 用户输入会自动保存到 answers.question1
+                                - answers.question1 改变会自动更新 textarea 显示
+                            -->
+                            <textarea 
+                                placeholder="Enter your hobbies, separated by commas"
+                                v-model="answers.question1"
+                            ></textarea>
+                            <div class="note">Example: reading, swimming, photography</div>
+                        </div>
+
+                        <!-- 
+                            ============================================
+                            问题 2：感兴趣的话题
+                            ============================================
+                            同样的模式，使用 v-if 和 v-model
+                        -->
+                        <div 
+                            class="question" 
+                            v-if="currentQuestion === 2"
+                            id="question2"
+                        >
+                            <label>What topics are you always interested in discussing? (3-5)</label>
+                            <textarea 
+                                placeholder="Enter topics you're interested in, separated by commas"
+                                v-model="answers.question2"
+                            ></textarea>
+                            <div class="note">Example: technology, art, science</div>
+                        </div>
+
+                        <!-- 
+                            ============================================
+                            问题 3：喜欢的内容类型
+                            ============================================
+                        -->
+                        <div 
+                            class="question" 
+                            v-if="currentQuestion === 3"
+                            id="question3"
+                        >
+                            <label>What types of books and videos do you usually enjoy? (3-5)</label>
+                            <textarea 
+                                placeholder="Enter your preferred content types, separated by commas"
+                                v-model="answers.question3"
+                            ></textarea>
+                            <div class="note">Example: mystery novels, educational videos, documentaries</div>
+                        </div>
+
+                        <!-- 
+                            ============================================
+                            按钮组
+                            ============================================
+                        -->
+                        <div class="button-group">
+                            <!-- 
+                                @click 事件监听器
+                                @click="skipQuestion" 表示点击时调用 skipQuestion 方法
+                            -->
+                            <button 
+                                class="skip-btn" 
+                                @click="skipQuestion"
+                            >
+                                Skip
+                            </button>
+                            <button 
+                                class="next-btn" 
+                                @click="nextQuestion"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            `
         };
 
-        // Initialize
-        updateProgress();
+        // ============================================
+        // 8. 创建并挂载 Vue 应用
+        // ============================================
+        
+        /**
+         * createApp() - 创建 Vue 应用实例
+         * 
+         * 语法：const app = createApp(Component)
+         * 
+         * 流程：
+         * 1. Vue 找到 #app 元素
+         * 2. 执行组件的 setup() 函数
+         * 3. 渲染模板
+         * 4. 将渲染结果插入到 #app 中
+         * 
+         * mount() - 挂载应用
+         * 
+         * 语法：app.mount('#app')
+         * 
+         * 作用：
+         * - 将 Vue 应用挂载到指定的 DOM 元素上
+         * - 开始响应式系统
+         * - 开始监听数据变化并更新视图
+         */
+        const app = createApp(PersonalizationApp);
+        app.mount('#app');
+
+        /**
+         * ============================================
+         * Vue 3 核心概念总结
+         * ============================================
+         * 
+         * 1. 响应式系统
+         *    - ref(): 基本类型数据（字符串、数字、布尔值）
+         *    - reactive(): 对象、数组
+         *    - 数据改变 → 自动更新视图
+         *    - 不需要手动操作 DOM
+         * 
+         * 2. 计算属性
+         *    - computed(): 基于响应式数据计算
+         *    - 有缓存，性能优化
+         *    - 只有依赖改变时才重新计算
+         * 
+         * 3. 方法
+         *    - 在 setup() 中定义
+         *    - 可以直接访问响应式数据
+         *    - 修改数据会自动触发视图更新
+         * 
+         * 4. 生命周期
+         *    - onMounted(): 组件挂载后执行
+         *    - 用于初始化操作（如加载数据）
+         * 
+         * 5. 模板语法
+         *    - {{ }}: 插值表达式
+         *    - v-if / v-else: 条件渲染
+         *    - v-model: 双向绑定
+         *    - @click: 事件监听
+         * 
+         * 6. 组件化
+         *    - 将 UI 拆分成独立组件
+         *    - 提高代码复用性和可维护性
+         * 
+         * ============================================
+         * Vue 3 的优势
+         * ============================================
+         * 
+         * 1. 声明式编程
+         *    - 描述"是什么"，而不是"怎么做"
+         *    - 代码更简洁，逻辑更清晰
+         * 
+         * 2. 自动更新
+         *    - 数据改变，视图自动更新
+         *    - 不需要手动操作 DOM
+         * 
+         * 3. 响应式系统
+         *    - 自动追踪依赖
+         *    - 精确更新，性能优化
+         * 
+         * 4. 组合式 API
+         *    - 更好的逻辑复用
+         *    - 更好的 TypeScript 支持
+         *    - 更清晰的代码组织
+         * 
+         * ============================================
+         * 下一步学习建议
+         * ============================================
+         * 
+         * 1. 学习组件通信（props, emit）
+         * 2. 学习 Vue Router（路由管理）
+         * 3. 学习 Pinia（状态管理）
+         * 4. 学习组合式函数（Composables）
+         * 5. 学习构建工具（Vite + Vue）
+         */
     </script>
 </body>
 </html> 
