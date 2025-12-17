@@ -34,7 +34,11 @@ if not os.environ.get("API_KEY"):
 
 @app.route('/')
 def index():
-    return send_from_directory(app.static_folder, 'personalization.html')
+    return send_from_directory(app.static_folder, 'login.html')
+
+@app.route('/login')
+def login():
+    return send_from_directory(app.static_folder, 'login.html')
 
 @app.route('/main')
 def main():
