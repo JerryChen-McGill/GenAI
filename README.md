@@ -52,7 +52,7 @@ python backend/app.py
 
 ## Online Usage
 
-Visit [Render deployment link] to use the application online.
+Visit https://genai-oac9.onrender.com/ to use the application online.
 
 ## Tech Stack
 
@@ -60,7 +60,7 @@ Visit [Render deployment link] to use the application online.
 - **Frontend**: HTML, CSS, JavaScript (Vanilla JS, Vue.js 3)
 - **Authentication**: Firebase Authentication
 - **AI**: GLM4 API (Zhipu AI)
-- **Storage**: localStorage, Firebase Firestore (for future features)
+- **Storage**: localStorage, Firebase Firestore
 
 ## Project Structure
 
