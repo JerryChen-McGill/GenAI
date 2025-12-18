@@ -6,6 +6,11 @@
     <title>What you want to learn?</title>
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Firebase SDK for Authentication -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <script>
         // 确保 marked 可用
         if (typeof marked === 'undefined') {
@@ -13,8 +18,753 @@
         }
     </script>
 
+    <style>
+        /* ============================================
+           侧边栏菜单样式
+           ============================================ */
+        
+        /* 菜单按钮 */
+        .menu-toggle-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: var(--background-white);
+            box-shadow: var(--shadow-medium);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-normal);
+            font-size: 20px;
+            color: var(--text-primary);
+        }
+        
+        .menu-toggle-btn:hover {
+            background: var(--background-light);
+            transform: scale(1.05);
+            box-shadow: var(--shadow-large);
+        }
+        
+        .menu-toggle-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* 侧边栏遮罩层 */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition-normal);
+            backdrop-filter: blur(4px);
+        }
+        
+        .sidebar-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* 侧边栏容器 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background: var(--background-white);
+            box-shadow: var(--shadow-large);
+            z-index: 1000;
+            transform: translateX(-100%);
+            transition: transform var(--transition-normal);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar.show {
+            transform: translateX(0);
+        }
+        
+        /* 侧边栏头部 */
+        .sidebar-header {
+            padding: var(--spacing-xl);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end; /* 右对齐关闭按钮 */
+        }
+        
+        .sidebar-close-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--text-secondary);
+            transition: all var(--transition-fast);
+        }
+        
+        .sidebar-close-btn:hover {
+            background: var(--background-light);
+            color: var(--text-primary);
+        }
+        
+        /* 侧边栏菜单项 */
+        .sidebar-menu {
+            flex: 1;
+            padding: var(--spacing-md) 0;
+        }
+        
+        .sidebar-menu-item {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-xl);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar-menu-item:hover {
+            background: var(--background-light);
+            border-left-color: var(--primary-blue);
+        }
+        
+        .sidebar-menu-item.active {
+            background: rgba(0, 122, 255, 0.1);
+            border-left-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+        
+        .sidebar-menu-item-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .sidebar-menu-item-text {
+            flex: 1;
+            font-size: var(--font-size-md);
+            font-weight: 500;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 260px;
+            }
+        }
+        
+        /* ============================================
+           模态框样式
+           ============================================ */
+        
+        /* 模态框遮罩层 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition-normal);
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* 模态框容器 */
+        .modal {
+            background: var(--background-white);
+            border-radius: var(--radius-large);
+            box-shadow: var(--shadow-large);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform var(--transition-normal);
+            position: relative;
+        }
+        
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
+        
+        /* 模态框头部 */
+        .modal-header {
+            padding: var(--spacing-xl);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .modal-close-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--text-secondary);
+            transition: all var(--transition-fast);
+        }
+        
+        .modal-close-btn:hover {
+            background: var(--background-light);
+            color: var(--text-primary);
+        }
+        
+        /* 模态框内容 */
+        .modal-content {
+            padding: var(--spacing-xl);
+        }
+        
+        /* 头像区域 */
+        .modal-avatar-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .modal-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            position: relative;
+        }
+        
+        .modal-avatar-camera {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--background-white);
+            border: 2px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: var(--shadow-small);
+        }
+        
+        /* 表单字段 */
+        .modal-field {
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .modal-field label {
+            display: block;
+            margin-bottom: var(--spacing-sm);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .modal-field input,
+        .modal-field textarea {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-medium);
+            font-size: var(--font-size-md);
+            font-family: var(--font-family);
+            transition: all var(--transition-fast);
+            box-sizing: border-box;
+        }
+        
+        .modal-field input:focus,
+        .modal-field textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+        
+        .modal-field textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .modal-field-info {
+            margin-top: var(--spacing-xs);
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        
+        /* 模态框按钮组 */
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-md);
+            padding: var(--spacing-xl);
+            border-top: 1px solid var(--border-light);
+        }
+        
+        .modal-btn {
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-radius: var(--radius-medium);
+            font-size: var(--font-size-md);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            border: none;
+        }
+        
+        .modal-btn-cancel {
+            background: var(--background-white);
+            color: var(--text-primary);
+            border: 2px solid var(--border-medium);
+        }
+        
+        .modal-btn-cancel:hover {
+            background: var(--background-light);
+            border-color: var(--text-secondary);
+        }
+        
+        .modal-btn-save {
+            background: var(--text-primary);
+            color: var(--background-white);
+        }
+        
+        .modal-btn-save:hover {
+            background: var(--text-secondary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-small);
+        }
+        
+        /* 偏好设置显示区域 */
+        .preference-display {
+            background: var(--background-light);
+            border-radius: var(--radius-medium);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .preference-item {
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .preference-item:last-child {
+            border-bottom: none;
+        }
+        
+        .preference-label {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .preference-value {
+            font-size: var(--font-size-md);
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+        
+        .preference-empty {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        /* ============================================
+           收藏按钮样式
+           ============================================ */
+        
+        .favorite-btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: transparent;
+            border: 2px solid var(--border-medium);
+            border-radius: var(--radius-medium);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            font-size: var(--font-size-md);
+            color: var(--text-secondary);
+            transition: all var(--transition-normal);
+            margin: 0 auto;
+        }
+        
+        .favorite-btn:hover {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+            background: rgba(0, 122, 255, 0.05);
+        }
+        
+        .favorite-btn.favorited {
+            border-color: #ff3b30;
+            color: #ff3b30;
+            background: rgba(255, 59, 48, 0.05);
+        }
+        
+        .favorite-btn-icon {
+            font-size: 18px;
+        }
+        
+        /* ============================================
+           收藏列表样式
+           ============================================ */
+        
+        .favorites-section {
+            margin-top: var(--spacing-lg);
+            border-top: 1px solid var(--border-light);
+            padding-top: var(--spacing-md);
+        }
+        
+        .favorites-header {
+            padding: var(--spacing-md) var(--spacing-xl);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .favorites-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .favorite-item {
+            padding: var(--spacing-md) var(--spacing-xl);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .favorite-item:hover {
+            background: var(--background-light);
+            border-left-color: var(--primary-blue);
+        }
+        
+        .favorite-item.active {
+            background: rgba(0, 122, 255, 0.1);
+            border-left-color: var(--primary-blue);
+        }
+        
+        .favorite-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .favorite-item-title {
+            font-size: var(--font-size-sm);
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .favorite-item-date {
+            font-size: var(--font-size-xs);
+            color: var(--text-tertiary);
+        }
+        
+        .favorite-item-delete {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-tertiary);
+            transition: all var(--transition-fast);
+            opacity: 0;
+        }
+        
+        .favorite-item:hover .favorite-item-delete {
+            opacity: 1;
+        }
+        
+        .favorite-item-delete:hover {
+            background: rgba(255, 59, 48, 0.1);
+            color: #ff3b30;
+        }
+        
+        .favorites-empty {
+            padding: var(--spacing-xl);
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+            font-size: var(--font-size-sm);
+        }
+        
+        /* ============================================
+           可展开区域样式（标题样式）
+           ============================================ */
+        
+        .expandable-section {
+            margin-top: var(--spacing-lg);
+            display: none; /* 默认隐藏，有内容时显示 */
+        }
+        
+        .expandable-section.has-content {
+            display: block;
+        }
+        
+        .section-title-btn {
+            width: 100%;
+            padding: var(--spacing-md) 0;
+            background: transparent !important; /* 强制透明，覆盖所有可能的背景 */
+            border: none !important; /* 强制无边框 */
+            outline: none !important; /* 移除焦点时的边框 */
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            transition: none; /* 不添加任何过渡效果 */
+            font-family: var(--font-family);
+            /* 移除浏览器默认按钮样式 */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
+        /* 悬停时只改变箭头颜色，背景和文字完全不变 */
+        .section-title-btn:hover {
+            background: transparent !important; /* 确保悬停时背景也是透明 */
+        }
+        
+        .section-title-btn:hover .section-title-arrow {
+            color: var(--text-primary);
+        }
+        
+        /* 激活和焦点状态也保持透明 */
+        .section-title-btn:active,
+        .section-title-btn:focus {
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+        }
+        
+        .section-title-arrow {
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            transition: color var(--transition-fast), transform var(--transition-normal);
+            flex-shrink: 0;
+        }
+        
+        .section-title-btn.active .section-title-arrow {
+            transform: rotate(90deg);
+        }
+        
+        .section-title-text {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+            /* 文字颜色和背景永远不变 */
+        }
+        
+        .section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height var(--transition-normal) ease-out, padding var(--transition-normal);
+            padding: 0 var(--spacing-lg);
+            background: linear-gradient(135deg, #F8F9FA 0%, #F1F3F4 100%);
+            margin-top: 0;
+        }
+        
+        .section-content.show {
+            max-height: 2000px; /* 足够大的值以容纳内容 */
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-md);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+        }
+        
+        .section-content.show > * {
+            animation: fadeIn var(--transition-normal) ease-out;
+        }
+    </style>
 </head>
 <body>
+    <!-- 菜单按钮 -->
+    <button class="menu-toggle-btn" id="menuToggleBtn" aria-label="Toggle menu">
+        ☰
+    </button>
+    
+    <!-- 侧边栏遮罩层 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- 侧边栏 -->
+    <div class="sidebar" id="sidebar">
+        <!-- 侧边栏头部 -->
+        <div class="sidebar-header">
+            <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close menu">
+                ✕
+            </button>
+        </div>
+        
+        <!-- 侧边栏菜单 -->
+        <nav class="sidebar-menu">
+            <div class="sidebar-menu-item" id="menuItemAccount">
+                <div class="sidebar-menu-item-icon">👤</div>
+                <div class="sidebar-menu-item-text">My Account</div>
+            </div>
+            <div class="sidebar-menu-item" id="menuItemPrompt">
+                <div class="sidebar-menu-item-icon">⚙️</div>
+                <div class="sidebar-menu-item-text">My Prompt Setting</div>
+            </div>
+        </nav>
+        
+        <!-- Prompt 列表区域 -->
+        <div class="favorites-section">
+            <div class="favorites-header">My Prompt Setting</div>
+            <div class="favorites-list" id="promptsList">
+                <!-- Prompt 列表将通过 JavaScript 动态加载 -->
+            </div>
+        </div>
+        
+        <!-- 收藏列表区域 -->
+        <div class="favorites-section">
+            <div class="favorites-header">My Question Collection</div>
+            <div class="favorites-list" id="favoritesList">
+                <!-- 收藏列表将通过 JavaScript 动态加载 -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- 账户信息模态框 -->
+    <div class="modal-overlay" id="accountModalOverlay">
+        <div class="modal" id="accountModal">
+            <div class="modal-header">
+                <h2>My Account</h2>
+                <button class="modal-close-btn" id="accountModalClose">✕</button>
+            </div>
+            <div class="modal-content">
+                <div class="modal-avatar-section">
+                    <div class="modal-avatar" id="accountAvatar">
+                        <!-- 头像初始字母将通过 JavaScript 动态设置 -->
+                    </div>
+                    <div class="modal-avatar-camera" title="Change profile picture">📷</div>
+                </div>
+                <div class="modal-field">
+                    <label for="accountEmail">Email (账号)</label>
+                    <input type="email" id="accountEmail" readonly>
+                </div>
+                <div class="modal-field">
+                    <label for="accountDisplayName">Display Name (显示名称)</label>
+                    <input type="text" id="accountDisplayName" placeholder="Enter your display name">
+                </div>
+                <div class="modal-field">
+                    <label for="accountUsername">Username (用户名)</label>
+                    <input type="text" id="accountUsername" placeholder="Enter your username">
+                </div>
+                <div class="modal-field-info">
+                    个人资料有助于他人识别你的身份。你的姓名和用户名也将用于应用。
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="accountModalCancel">取消</button>
+                <button class="modal-btn modal-btn-save" id="accountModalSave">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 偏好设置模态框 -->
+    <div class="modal-overlay" id="preferenceModalOverlay">
+        <div class="modal" id="preferenceModal">
+            <div class="modal-header">
+                <h2>My Prompt Setting</h2>
+                <button class="modal-close-btn" id="preferenceModalClose">✕</button>
+            </div>
+            <div class="modal-content">
+                <div id="preferenceContent">
+                    <!-- 偏好设置内容将通过 JavaScript 动态加载 -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="preferenceModalCancel">关闭</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Prompt 详情模态框 -->
+    <div class="modal-overlay" id="promptDetailModalOverlay">
+        <div class="modal" id="promptDetailModal">
+            <div class="modal-header">
+                <h2>Prompt Details</h2>
+                <button class="modal-close-btn" id="promptDetailModalClose">✕</button>
+            </div>
+            <div class="modal-content">
+                <div id="promptDetailContent">
+                    <!-- Prompt 详情内容将通过 JavaScript 动态加载 -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="promptDetailModalCancel">关闭</button>
+                <button class="modal-btn modal-btn-save" id="promptDetailModalImport">Import</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="container">
         <div class="panel left-panel">
             <h1>What you want to learn?</h1>
@@ -63,17 +813,34 @@
             </div>
             <button id="showTagInputBtn" class="add-tag-btn">+</button>
 
+            <div class="more-options-link" id="savePromptBtn" style="margin-top: var(--spacing-lg);">Save Prompt</div>
+            
             <button id="generateBtn"><span>Generate</span></button>
         </div>
         <div class="panel right-panel">
-            <h1>Your Learning Task</h1>
+            <h1>Math Question</h1>
             <div id="result"></div>
-            <div class="action-buttons">
-                <button class="action-button" id="hintBtn">Show Hints</button>
-                <button class="action-button" id="solutionBtn">Show Solution</button>
+            
+            <!-- Hints 标题和内容 -->
+            <div class="expandable-section" id="hintExpandableSection">
+                <button class="section-title-btn" id="hintBtn">
+                    <span class="section-title-arrow">▶</span>
+                    <span class="section-title-text">Show Hints</span>
+                </button>
+                <div id="hintSection" class="section-content"></div>
             </div>
-            <div id="hintSection" class="hint-section"></div>
-            <div id="solutionSection" class="solution-section"></div>
+            
+            <!-- Solution 标题和内容 -->
+            <div class="expandable-section" id="solutionExpandableSection">
+                <button class="section-title-btn" id="solutionBtn">
+                    <span class="section-title-arrow">▶</span>
+                    <span class="section-title-text">Show Solution</span>
+                </button>
+                <div id="solutionSection" class="section-content"></div>
+            </div>
+            
+            <!-- 收藏按钮容器 -->
+            <div id="favoriteBtnContainer" style="margin-top: var(--spacing-lg); text-align: center;"></div>
         </div>
     </div>
 
@@ -179,7 +946,11 @@
             const selectedTags = getSelectedTags();
 
             if (!topic) {
+                result.className = '';
                 result.textContent = 'Please enter what you want to learn.';
+                // 隐藏 Hints 和 Solution 区域
+                document.getElementById('hintExpandableSection').classList.remove('has-content');
+                document.getElementById('solutionExpandableSection').classList.remove('has-content');
                 return;
             }
 
@@ -229,21 +1000,61 @@
                         throw new Error('Marked library is not loaded');
                     }
                     
-                    // 显示问题部分
-                    const problemSection = document.createElement('div');
-                    problemSection.className = 'problem-section';
-                    problemSection.innerHTML = marked.parse(data.problem);
-                    result.innerHTML = '';
-                    result.appendChild(problemSection);
+                    // 显示问题部分 - 直接使用 result，应用 section-content 样式
+                    result.className = 'section-content show'; // 直接给 result 应用样式
+                    result.innerHTML = marked.parse(data.problem);
+                    
+                    // 添加收藏按钮到容器中
+                    const favoriteBtnContainer = document.getElementById('favoriteBtnContainer');
+                    favoriteBtnContainer.innerHTML = ''; // 清空容器
+                    
+                    const favoriteBtn = document.createElement('button');
+                    favoriteBtn.className = 'favorite-btn';
+                    favoriteBtn.id = 'favoriteBtn';
+                    favoriteBtn.innerHTML = '<span class="favorite-btn-icon">♡</span> <span>Add to Favorites</span>';
+                    
+                    // 检查是否已收藏（通过问题文本的前200个字符匹配）
+                    const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+                    const currentProblemHash = data.problem.substring(0, 200).trim();
+                    const isFavorited = favorites.some(fav => {
+                        const favProblemHash = fav.problem.substring(0, 200).trim();
+                        return favProblemHash === currentProblemHash;
+                    });
+                    
+                    if (isFavorited) {
+                        favoriteBtn.classList.add('favorited');
+                        favoriteBtn.innerHTML = '<span class="favorite-btn-icon">♥</span> <span>Favorited</span>';
+                    }
+                    
+                    // 收藏按钮点击事件
+                    favoriteBtn.addEventListener('click', function() {
+                        const wasFavorited = this.classList.contains('favorited');
+                        saveToFavorites(data, wasFavorited);
+                        this.classList.toggle('favorited');
+                        if (this.classList.contains('favorited')) {
+                            this.innerHTML = '<span class="favorite-btn-icon">♥</span> <span>Favorited</span>';
+                        } else {
+                            this.innerHTML = '<span class="favorite-btn-icon">♡</span> <span>Add to Favorites</span>';
+                        }
+                        // 更新收藏列表
+                        loadFavoritesList();
+                    });
+                    
+                    favoriteBtnContainer.appendChild(favoriteBtn);
 
                     // 设置提示部分
                     const hintSection = document.getElementById('hintSection');
+                    const hintExpandableSection = document.getElementById('hintExpandableSection');
                     if (data.hints) {
                         hintSection.innerHTML = marked.parse(data.hints);
+                        hintExpandableSection.classList.add('has-content'); // 显示 Hints 区域
+                    } else {
+                        hintExpandableSection.classList.remove('has-content'); // 隐藏 Hints 区域
                     }
 
                     // 设置解答部分（包含步骤和答案）
                     const solutionSection = document.getElementById('solutionSection');
+                    const solutionExpandableSection = document.getElementById('solutionExpandableSection');
                     if (data.solution || data.answer) {
                         let solutionContent = '';
                         if (data.solution) {
@@ -253,22 +1064,27 @@
                             solutionContent += '\n\n### Final Answer\n' + data.answer;
                         }
                         solutionSection.innerHTML = marked.parse(solutionContent);
+                        solutionExpandableSection.classList.add('has-content'); // 显示 Solution 区域
+                    } else {
+                        solutionExpandableSection.classList.remove('has-content'); // 隐藏 Solution 区域
                     }
 
                     // 设置按钮事件
                     const hintBtn = document.getElementById('hintBtn');
                     const solutionBtn = document.getElementById('solutionBtn');
+                    const hintTitleText = hintBtn.querySelector('.section-title-text');
+                    const solutionTitleText = solutionBtn.querySelector('.section-title-text');
 
                     hintBtn.onclick = function() {
                         hintSection.classList.toggle('show');
                         this.classList.toggle('active');
-                        this.textContent = hintSection.classList.contains('show') ? 'Hide Hints' : 'Show Hints';
+                        hintTitleText.textContent = hintSection.classList.contains('show') ? 'Hide Hints' : 'Show Hints';
                     };
 
                     solutionBtn.onclick = function() {
                         solutionSection.classList.toggle('show');
                         this.classList.toggle('active');
-                        this.textContent = solutionSection.classList.contains('show') ? 'Hide Solution' : 'Show Solution';
+                        solutionTitleText.textContent = solutionSection.classList.contains('show') ? 'Hide Solution' : 'Show Solution';
                     };
 
                 } catch (markdownError) {
@@ -389,12 +1205,858 @@
 
         // 将 onclick 事件监听器添加到按钮
         document.getElementById('generateBtn').addEventListener('click', generateProblems);
-
+        
+        // ============================================
+        // Save Prompt 功能
+        // ============================================
+        
+        /**
+         * 保存当前 Prompt 设置
+         */
+        function savePromptSettings() {
+            const topic = document.getElementById('topic').value;
+            const grade = document.getElementById('grade').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const number = document.getElementById('number').value;
+            const requirements = document.getElementById('requirements').value;
+            const selectedTags = getSelectedTags();
+            
+            // 如果没有主题，提示用户
+            if (!topic.trim()) {
+                alert('Please enter a topic before saving.');
+                return;
+            }
+            
+            // 创建 Prompt 设置对象
+            const promptSettings = {
+                id: Date.now().toString(), // 使用时间戳作为唯一ID
+                topic: topic,
+                grade: grade || '',
+                difficulty: difficulty || '',
+                number: number || '1',
+                requirements: requirements || '',
+                selectedTags: selectedTags,
+                title: getPromptTitle(topic, grade, difficulty), // 生成标题
+                createdAt: new Date().toISOString()
+            };
+            
+            // 从 localStorage 读取已保存的 Prompts
+            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+            
+            // 添加到列表开头
+            savedPrompts.unshift(promptSettings);
+            
+            // 保存到 localStorage
+            localStorage.setItem('savedPrompts', JSON.stringify(savedPrompts));
+            
+            console.log('Prompt 设置已保存:', promptSettings);
+            
+            // 显示保存成功提示
+            const saveBtn = document.getElementById('savePromptBtn');
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = 'Saved!';
+            saveBtn.style.color = 'var(--success-green)';
+            
+            setTimeout(() => {
+                saveBtn.textContent = originalText;
+                saveBtn.style.color = '';
+            }, 2000);
+            
+            // 更新 Prompt 列表
+            loadPromptsList();
+        }
+        
+        /**
+         * 生成 Prompt 标题
+         */
+        function getPromptTitle(topic, grade, difficulty) {
+            let title = topic;
+            if (grade) {
+                title += ` (Grade ${grade})`;
+            }
+            if (difficulty) {
+                title += ` - ${difficulty}`;
+            }
+            return title.length > 40 ? title.substring(0, 40) + '...' : title;
+        }
+        
+        /**
+         * 加载 Prompt 列表
+         */
+        function loadPromptsList() {
+            const promptsList = document.getElementById('promptsList');
+            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+            
+            // 清空列表
+            promptsList.innerHTML = '';
+            
+            if (savedPrompts.length === 0) {
+                promptsList.innerHTML = '<div class="favorites-empty">暂无保存的 Prompt</div>';
+                return;
+            }
+            
+            // 显示 Prompt 列表
+            savedPrompts.forEach(prompt => {
+                const item = document.createElement('div');
+                item.className = 'favorite-item';
+                item.dataset.promptId = prompt.id;
+                
+                const date = new Date(prompt.createdAt);
+                const dateStr = date.toLocaleDateString('zh-CN', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                
+                item.innerHTML = `
+                    <div class="favorite-item-content">
+                        <div class="favorite-item-title">${prompt.title}</div>
+                        <div class="favorite-item-date">${dateStr}</div>
+                    </div>
+                    <button class="favorite-item-delete" data-prompt-id="${prompt.id}" title="删除">✕</button>
+                `;
+                
+                // 点击 Prompt 项，显示详情
+                item.addEventListener('click', function(e) {
+                    // 如果点击的是删除按钮，不显示详情
+                    if (e.target.classList.contains('favorite-item-delete')) {
+                        return;
+                    }
+                    showPromptDetail(prompt);
+                    // 添加激活状态
+                    document.querySelectorAll('#promptsList .favorite-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    closeSidebar();
+                });
+                
+                // 删除按钮点击事件
+                const deleteBtn = item.querySelector('.favorite-item-delete');
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // 阻止事件冒泡
+                    if (confirm('确定要删除这个 Prompt 吗？')) {
+                        removePrompt(prompt.id);
+                    }
+                });
+                
+                promptsList.appendChild(item);
+            });
+        }
+        
+        /**
+         * 显示 Prompt 详情
+         */
+        function showPromptDetail(prompt) {
+            const promptDetailContent = document.getElementById('promptDetailContent');
+            const promptDetailModalOverlay = document.getElementById('promptDetailModalOverlay');
+            
+            // 构建详情内容
+            const detailDisplay = document.createElement('div');
+            detailDisplay.className = 'preference-display';
+            
+            if (prompt.topic) {
+                const item1 = document.createElement('div');
+                item1.className = 'preference-item';
+                item1.innerHTML = `
+                    <div class="preference-label">I want to learn:</div>
+                    <div class="preference-value">${prompt.topic}</div>
+                `;
+                detailDisplay.appendChild(item1);
+            }
+            
+            if (prompt.grade) {
+                const item2 = document.createElement('div');
+                item2.className = 'preference-item';
+                item2.innerHTML = `
+                    <div class="preference-label">Grade:</div>
+                    <div class="preference-value">${prompt.grade}</div>
+                `;
+                detailDisplay.appendChild(item2);
+            }
+            
+            if (prompt.difficulty) {
+                const item3 = document.createElement('div');
+                item3.className = 'preference-item';
+                item3.innerHTML = `
+                    <div class="preference-label">Difficulty:</div>
+                    <div class="preference-value">${prompt.difficulty}</div>
+                `;
+                detailDisplay.appendChild(item3);
+            }
+            
+            if (prompt.number) {
+                const item4 = document.createElement('div');
+                item4.className = 'preference-item';
+                item4.innerHTML = `
+                    <div class="preference-label">Number of Problems:</div>
+                    <div class="preference-value">${prompt.number}</div>
+                `;
+                detailDisplay.appendChild(item4);
+            }
+            
+            if (prompt.requirements) {
+                const item5 = document.createElement('div');
+                item5.className = 'preference-item';
+                item5.innerHTML = `
+                    <div class="preference-label">Additional Requirements:</div>
+                    <div class="preference-value">${prompt.requirements}</div>
+                `;
+                detailDisplay.appendChild(item5);
+            }
+            
+            if (prompt.selectedTags && prompt.selectedTags.length > 0) {
+                const item6 = document.createElement('div');
+                item6.className = 'preference-item';
+                item6.innerHTML = `
+                    <div class="preference-label">I want to involve:</div>
+                    <div class="preference-value">${prompt.selectedTags.join(', ')}</div>
+                `;
+                detailDisplay.appendChild(item6);
+            }
+            
+            promptDetailContent.innerHTML = '';
+            promptDetailContent.appendChild(detailDisplay);
+            
+            // 存储当前要导入的 Prompt（用于 Import 按钮）
+            promptDetailModalOverlay.dataset.currentPromptId = prompt.id;
+            
+            // 显示模态框
+            promptDetailModalOverlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        /**
+         * 导入 Prompt 设置
+         */
+        function importPromptSettings() {
+            const promptId = document.getElementById('promptDetailModalOverlay').dataset.currentPromptId;
+            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+            const prompt = savedPrompts.find(p => p.id === promptId);
+            
+            if (!prompt) {
+                alert('Prompt 设置未找到');
+                return;
+            }
+            
+            // 导入设置到各个输入框
+            if (prompt.topic) {
+                document.getElementById('topic').value = prompt.topic;
+            }
+            
+            if (prompt.grade) {
+                document.getElementById('grade').value = prompt.grade;
+            }
+            
+            if (prompt.difficulty) {
+                document.getElementById('difficulty').value = prompt.difficulty;
+            }
+            
+            if (prompt.number) {
+                document.getElementById('number').value = prompt.number;
+            }
+            
+            if (prompt.requirements) {
+                document.getElementById('requirements').value = prompt.requirements;
+            }
+            
+            // 导入标签
+            if (prompt.selectedTags && prompt.selectedTags.length > 0) {
+                const tagContainer = document.getElementById('tagContainer');
+                tagContainer.innerHTML = '';
+                
+                prompt.selectedTags.forEach(tag => {
+                    const tagElement = document.createElement('div');
+                    tagElement.className = 'tag';
+                    tagElement.textContent = tag;
+                    tagElement.onclick = () => {
+                        tagElement.classList.toggle('selected');
+                        saveTagsToLocalStorage();
+                    };
+                    tagContainer.appendChild(tagElement);
+                });
+                
+                // 保存标签到 localStorage
+                saveTagsToLocalStorage();
+            }
+            
+            console.log('Prompt 设置已导入:', prompt);
+            alert('Prompt 设置已导入！');
+            closePromptDetailModal();
+        }
+        
+        /**
+         * 关闭 Prompt 详情模态框
+         */
+        function closePromptDetailModal() {
+            const promptDetailModalOverlay = document.getElementById('promptDetailModalOverlay');
+            promptDetailModalOverlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        /**
+         * 删除 Prompt
+         */
+        function removePrompt(promptId) {
+            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+            const filtered = savedPrompts.filter(p => p.id !== promptId);
+            localStorage.setItem('savedPrompts', JSON.stringify(filtered));
+            loadPromptsList();
+            
+            // 如果当前显示的是被删除的 Prompt，关闭模态框
+            const currentPromptId = document.getElementById('promptDetailModalOverlay').dataset.currentPromptId;
+            if (currentPromptId === promptId) {
+                closePromptDetailModal();
+            }
+        }
+        
+        // Save Prompt 按钮点击事件
+        document.getElementById('savePromptBtn').addEventListener('click', savePromptSettings);
+        
+        // Prompt 详情模态框事件
+        const promptDetailModalOverlay = document.getElementById('promptDetailModalOverlay');
+        const promptDetailModalClose = document.getElementById('promptDetailModalClose');
+        const promptDetailModalCancel = document.getElementById('promptDetailModalCancel');
+        const promptDetailModalImport = document.getElementById('promptDetailModalImport');
+        
+        promptDetailModalClose.addEventListener('click', closePromptDetailModal);
+        promptDetailModalCancel.addEventListener('click', closePromptDetailModal);
+        promptDetailModalImport.addEventListener('click', importPromptSettings);
+        promptDetailModalOverlay.addEventListener('click', function(e) {
+            if (e.target === promptDetailModalOverlay) {
+                closePromptDetailModal();
+            }
+        });
+        
         // 页面加载时检查用户偏好并加载
         window.onload = function() {
             checkUserPreferences();
             loadUserPreferences();
+            loadPromptsList(); // 加载 Prompt 列表
         };
+
+        // ============================================
+        // 侧边栏菜单功能
+        // ============================================
+        
+        const menuToggleBtn = document.getElementById('menuToggleBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+        
+        /**
+         * 打开侧边栏
+         */
+        function openSidebar() {
+            sidebar.classList.add('show');
+            sidebarOverlay.classList.add('show');
+            // 防止背景滚动
+            document.body.style.overflow = 'hidden';
+        }
+        
+        /**
+         * 关闭侧边栏
+         */
+        function closeSidebar() {
+            sidebar.classList.remove('show');
+            sidebarOverlay.classList.remove('show');
+            // 恢复背景滚动
+            document.body.style.overflow = '';
+        }
+        
+        /**
+         * 切换侧边栏显示/隐藏
+         */
+        function toggleSidebar() {
+            if (sidebar.classList.contains('show')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+        
+        // 菜单按钮点击事件
+        menuToggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // 阻止事件冒泡
+            toggleSidebar();
+        });
+        
+        // 关闭按钮点击事件
+        sidebarCloseBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // 阻止事件冒泡
+            closeSidebar();
+        });
+        
+        // 点击遮罩层关闭侧边栏
+        sidebarOverlay.addEventListener('click', function() {
+            closeSidebar();
+        });
+        
+        // ============================================
+        // 模态框功能
+        // ============================================
+        
+        // 账户信息模态框
+        const accountModalOverlay = document.getElementById('accountModalOverlay');
+        const accountModal = document.getElementById('accountModal');
+        const accountModalClose = document.getElementById('accountModalClose');
+        const accountModalCancel = document.getElementById('accountModalCancel');
+        const accountModalSave = document.getElementById('accountModalSave');
+        
+        // 偏好设置模态框
+        const preferenceModalOverlay = document.getElementById('preferenceModalOverlay');
+        const preferenceModal = document.getElementById('preferenceModal');
+        const preferenceModalClose = document.getElementById('preferenceModalClose');
+        const preferenceModalCancel = document.getElementById('preferenceModalCancel');
+        const preferenceContent = document.getElementById('preferenceContent');
+        
+        /**
+         * 打开账户信息模态框
+         */
+        function openAccountModal() {
+            // 获取当前登录用户信息
+            let user = null;
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                user = firebase.auth().currentUser;
+            }
+            
+            if (user) {
+                // 设置邮箱
+                document.getElementById('accountEmail').value = user.email || '';
+                
+                // 设置头像初始字母
+                const avatar = document.getElementById('accountAvatar');
+                const email = user.email || '';
+                const initials = email.substring(0, 2).toUpperCase();
+                avatar.textContent = initials;
+                
+                // 从 localStorage 获取显示名称和用户名（如果已保存）
+                const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+                document.getElementById('accountDisplayName').value = userProfile.displayName || '';
+                document.getElementById('accountUsername').value = userProfile.username || email.split('@')[0] || '';
+            } else {
+                // 未登录用户
+                document.getElementById('accountEmail').value = 'Not logged in';
+                document.getElementById('accountAvatar').textContent = '?';
+                document.getElementById('accountDisplayName').value = '';
+                document.getElementById('accountUsername').value = '';
+            }
+            
+            accountModalOverlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        /**
+         * 关闭账户信息模态框
+         */
+        function closeAccountModal() {
+            accountModalOverlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        /**
+         * 保存账户信息
+         */
+        function saveAccountInfo() {
+            const displayName = document.getElementById('accountDisplayName').value;
+            const username = document.getElementById('accountUsername').value;
+            
+            // 保存到 localStorage
+            const userProfile = {
+                displayName: displayName,
+                username: username
+            };
+            localStorage.setItem('userProfile', JSON.stringify(userProfile));
+            
+            console.log('账户信息已保存:', userProfile);
+            
+            // 可以在这里添加提示消息
+            alert('账户信息已保存！');
+            
+            closeAccountModal();
+        }
+        
+        /**
+         * 打开偏好设置模态框
+         */
+        function openPreferenceModal() {
+            // 从 localStorage 读取用户偏好
+            const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+            
+            // 清空内容区域
+            preferenceContent.innerHTML = '';
+            
+            // 检查是否有偏好数据
+            if (Object.keys(preferences).length === 0) {
+                preferenceContent.innerHTML = '<div class="preference-empty">暂无偏好设置</div>';
+            } else {
+                // 显示偏好设置
+                const preferenceDisplay = document.createElement('div');
+                preferenceDisplay.className = 'preference-display';
+                
+                // 显示三个问题的答案
+                if (preferences.question1) {
+                    const item1 = document.createElement('div');
+                    item1.className = 'preference-item';
+                    item1.innerHTML = `
+                        <div class="preference-label">What are your hobbies? (兴趣爱好)</div>
+                        <div class="preference-value">${preferences.question1}</div>
+                    `;
+                    preferenceDisplay.appendChild(item1);
+                }
+                
+                if (preferences.question2) {
+                    const item2 = document.createElement('div');
+                    item2.className = 'preference-item';
+                    item2.innerHTML = `
+                        <div class="preference-label">What topics are you interested in? (感兴趣的话题)</div>
+                        <div class="preference-value">${preferences.question2}</div>
+                    `;
+                    preferenceDisplay.appendChild(item2);
+                }
+                
+                if (preferences.question3) {
+                    const item3 = document.createElement('div');
+                    item3.className = 'preference-item';
+                    item3.innerHTML = `
+                        <div class="preference-label">What types of content do you enjoy? (喜欢的内容类型)</div>
+                        <div class="preference-value">${preferences.question3}</div>
+                    `;
+                    preferenceDisplay.appendChild(item3);
+                }
+                
+                preferenceContent.appendChild(preferenceDisplay);
+            }
+            
+            preferenceModalOverlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        /**
+         * 关闭偏好设置模态框
+         */
+        function closePreferenceModal() {
+            preferenceModalOverlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        // 账户信息模态框事件
+        accountModalClose.addEventListener('click', closeAccountModal);
+        accountModalCancel.addEventListener('click', closeAccountModal);
+        accountModalSave.addEventListener('click', saveAccountInfo);
+        accountModalOverlay.addEventListener('click', function(e) {
+            if (e.target === accountModalOverlay) {
+                closeAccountModal();
+            }
+        });
+        
+        // 偏好设置模态框事件
+        preferenceModalClose.addEventListener('click', closePreferenceModal);
+        preferenceModalCancel.addEventListener('click', closePreferenceModal);
+        preferenceModalOverlay.addEventListener('click', function(e) {
+            if (e.target === preferenceModalOverlay) {
+                closePreferenceModal();
+            }
+        });
+        
+        // ESC 键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (accountModalOverlay.classList.contains('show')) {
+                    closeAccountModal();
+                }
+                if (preferenceModalOverlay.classList.contains('show')) {
+                    closePreferenceModal();
+                }
+                if (promptDetailModalOverlay.classList.contains('show')) {
+                    closePromptDetailModal();
+                }
+            }
+        });
+        
+        // 菜单项点击事件
+        const menuItemAccount = document.getElementById('menuItemAccount');
+        const menuItemPrompt = document.getElementById('menuItemPrompt');
+        
+        menuItemAccount.addEventListener('click', function() {
+            closeSidebar();
+            setTimeout(() => {
+                openAccountModal();
+            }, 200);
+        });
+        
+        menuItemPrompt.addEventListener('click', function() {
+            // 点击菜单项时，只关闭侧边栏，不显示模态框
+            // Prompt 列表已经在侧边栏中显示
+            closeSidebar();
+        });
+        
+        // ============================================
+        // 收藏功能
+        // ============================================
+        
+        const favoritesList = document.getElementById('favoritesList');
+        
+        /**
+         * 保存问题到收藏
+         * @param {Object} data - 问题数据 {problem, hints, solution, answer}
+         * @param {Boolean} wasFavorited - 是否已经收藏（用于切换状态）
+         */
+        function saveToFavorites(data, wasFavorited = false) {
+            const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+            
+            // 检查是否已存在（通过问题前200个字符判断）
+            const problemHash = data.problem.substring(0, 200).trim();
+            const existingIndex = favorites.findIndex(fav => {
+                const favProblemHash = fav.problem.substring(0, 200).trim();
+                return favProblemHash === problemHash;
+            });
+            
+            if (wasFavorited || existingIndex !== -1) {
+                // 如果已存在，移除收藏
+                if (existingIndex !== -1) {
+                    favorites.splice(existingIndex, 1);
+                }
+                console.log('已取消收藏');
+            } else {
+                // 如果不存在，添加收藏
+                const favoriteItem = {
+                    id: Date.now().toString(), // 使用时间戳作为唯一ID
+                    problem: data.problem,
+                    hints: data.hints || '',
+                    solution: data.solution || '',
+                    answer: data.answer || '',
+                    title: getProblemTitle(data.problem), // 提取问题标题
+                    createdAt: new Date().toISOString()
+                };
+                favorites.unshift(favoriteItem); // 添加到开头
+                console.log('已添加到收藏');
+            }
+            
+            // 保存到 localStorage
+            localStorage.setItem('favoriteQuestions', JSON.stringify(favorites));
+            
+            // 更新收藏列表
+            loadFavoritesList();
+        }
+        
+        /**
+         * 从问题文本中提取标题（前几个单词）
+         */
+        function getProblemTitle(problemText) {
+            // 移除 Markdown 格式
+            const text = problemText.replace(/[#*`_\[\]()]/g, '').trim();
+            // 获取前30个字符
+            const title = text.substring(0, 30);
+            // 如果超过30个字符，添加省略号
+            return text.length > 30 ? title + '...' : title;
+        }
+        
+        /**
+         * 加载收藏列表
+         */
+        function loadFavoritesList() {
+            const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+            
+            // 清空列表
+            favoritesList.innerHTML = '';
+            
+            if (favorites.length === 0) {
+                favoritesList.innerHTML = '<div class="favorites-empty">暂无收藏</div>';
+                return;
+            }
+            
+            // 显示收藏列表
+            favorites.forEach(favorite => {
+                const item = document.createElement('div');
+                item.className = 'favorite-item';
+                item.dataset.favoriteId = favorite.id;
+                
+                const date = new Date(favorite.createdAt);
+                const dateStr = date.toLocaleDateString('zh-CN', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                
+                item.innerHTML = `
+                    <div class="favorite-item-content">
+                        <div class="favorite-item-title">${favorite.title}</div>
+                        <div class="favorite-item-date">${dateStr}</div>
+                    </div>
+                    <button class="favorite-item-delete" data-favorite-id="${favorite.id}" title="删除">✕</button>
+                `;
+                
+                // 点击收藏项，加载问题
+                item.addEventListener('click', function(e) {
+                    // 如果点击的是删除按钮，不加载问题
+                    if (e.target.classList.contains('favorite-item-delete')) {
+                        return;
+                    }
+                    loadFavoriteQuestion(favorite);
+                    // 添加激活状态
+                    document.querySelectorAll('.favorite-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    closeSidebar();
+                });
+                
+                // 删除按钮点击事件
+                const deleteBtn = item.querySelector('.favorite-item-delete');
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // 阻止事件冒泡
+                    if (confirm('确定要删除这个收藏吗？')) {
+                        removeFavorite(favorite.id);
+                    }
+                });
+                
+                favoritesList.appendChild(item);
+            });
+        }
+        
+        /**
+         * 加载收藏的问题
+         */
+        function loadFavoriteQuestion(favorite) {
+            const result = document.getElementById('result');
+            const hintSection = document.getElementById('hintSection');
+            const solutionSection = document.getElementById('solutionSection');
+            const hintBtn = document.getElementById('hintBtn');
+            const solutionBtn = document.getElementById('solutionBtn');
+            
+            // 清空之前的内容
+            result.innerHTML = '';
+            result.className = ''; // 重置 result 的类
+            hintSection.innerHTML = '';
+            solutionSection.innerHTML = '';
+            
+            // 隐藏 Hints 和 Solution 区域
+            document.getElementById('hintExpandableSection').classList.remove('has-content');
+            document.getElementById('solutionExpandableSection').classList.remove('has-content');
+            
+            // 显示问题
+            try {
+                if (typeof marked !== 'undefined') {
+                    // 直接使用 result，应用 section-content 样式
+                    result.className = 'section-content show';
+                    result.innerHTML = marked.parse(favorite.problem);
+                    
+                    // 添加收藏按钮到容器中
+                    const favoriteBtnContainer = document.getElementById('favoriteBtnContainer');
+                    favoriteBtnContainer.innerHTML = ''; // 清空容器
+                    
+                    const favoriteBtn = document.createElement('button');
+                    favoriteBtn.className = 'favorite-btn favorited';
+                    favoriteBtn.id = 'favoriteBtn';
+                    favoriteBtn.innerHTML = '<span class="favorite-btn-icon">♥</span> <span>Favorited</span>';
+                    favoriteBtn.addEventListener('click', function() {
+                        // 重新保存以切换收藏状态
+                        saveToFavorites({
+                            problem: favorite.problem,
+                            hints: favorite.hints,
+                            solution: favorite.solution,
+                            answer: favorite.answer
+                        });
+                        this.classList.toggle('favorited');
+                        if (this.classList.contains('favorited')) {
+                            this.innerHTML = '<span class="favorite-btn-icon">♥</span> <span>Favorited</span>';
+                        } else {
+                            this.innerHTML = '<span class="favorite-btn-icon">♡</span> <span>Add to Favorites</span>';
+                        }
+                        loadFavoritesList();
+                    });
+                    favoriteBtnContainer.appendChild(favoriteBtn);
+                } else {
+                    result.textContent = favorite.problem;
+                }
+                
+                // 显示提示
+                const hintExpandableSection = document.getElementById('hintExpandableSection');
+                if (favorite.hints) {
+                    hintSection.innerHTML = marked.parse(favorite.hints);
+                    hintExpandableSection.classList.add('has-content'); // 显示 Hints 区域
+                } else {
+                    hintExpandableSection.classList.remove('has-content'); // 隐藏 Hints 区域
+                }
+                
+                // 显示解答
+                const solutionExpandableSection = document.getElementById('solutionExpandableSection');
+                if (favorite.solution || favorite.answer) {
+                    let solutionContent = '';
+                    if (favorite.solution) {
+                        solutionContent += '### Step-by-Step Solution\n' + favorite.solution;
+                    }
+                    if (favorite.answer) {
+                        solutionContent += '\n\n### Final Answer\n' + favorite.answer;
+                    }
+                    solutionSection.innerHTML = marked.parse(solutionContent);
+                    solutionExpandableSection.classList.add('has-content'); // 显示 Solution 区域
+                } else {
+                    solutionExpandableSection.classList.remove('has-content'); // 隐藏 Solution 区域
+                }
+                
+                // 设置按钮事件
+                const hintTitleText = hintBtn.querySelector('.section-title-text');
+                const solutionTitleText = solutionBtn.querySelector('.section-title-text');
+                
+                hintBtn.onclick = function() {
+                    hintSection.classList.toggle('show');
+                    this.classList.toggle('active');
+                    hintTitleText.textContent = hintSection.classList.contains('show') ? 'Hide Hints' : 'Show Hints';
+                };
+                
+                solutionBtn.onclick = function() {
+                    solutionSection.classList.toggle('show');
+                    this.classList.toggle('active');
+                    solutionTitleText.textContent = solutionSection.classList.contains('show') ? 'Hide Solution' : 'Show Solution';
+                };
+                
+                // 自动显示提示和解答
+                hintSection.classList.add('show');
+                solutionSection.classList.add('show');
+                hintBtn.classList.add('active');
+                solutionBtn.classList.add('active');
+                hintTitleText.textContent = 'Hide Hints';
+                solutionTitleText.textContent = 'Hide Solution';
+                
+            } catch (error) {
+                console.error('加载收藏问题错误:', error);
+                result.className = 'section-content show';
+                result.textContent = '加载问题失败';
+                // 隐藏 Hints 和 Solution 区域
+                document.getElementById('hintExpandableSection').classList.remove('has-content');
+                document.getElementById('solutionExpandableSection').classList.remove('has-content');
+            }
+        }
+        
+        /**
+         * 删除收藏
+         */
+        function removeFavorite(favoriteId) {
+            const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+            const filtered = favorites.filter(fav => fav.id !== favoriteId);
+            localStorage.setItem('favoriteQuestions', JSON.stringify(filtered));
+            loadFavoritesList();
+            
+            // 如果当前显示的是被删除的问题，清空显示
+            const currentFavoriteId = document.querySelector('.favorite-item.active')?.dataset.favoriteId;
+            if (currentFavoriteId === favoriteId) {
+                document.getElementById('result').innerHTML = '';
+                document.getElementById('hintSection').innerHTML = '';
+                document.getElementById('solutionSection').innerHTML = '';
+                document.getElementById('favoriteBtnContainer').innerHTML = '';
+            }
+        }
+        
+        // 页面加载时加载收藏列表
+        window.addEventListener('load', function() {
+            loadFavoritesList();
+            loadPromptsList(); // 加载 Prompt 列表
+        });
+        
+        // ESC 键关闭侧边栏
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+                closeSidebar();
+            }
+        });
     </script>
 </body>
 </html>

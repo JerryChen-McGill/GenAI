@@ -489,19 +489,10 @@ button.generating span::after {
     box-shadow: var(--shadow-small);
 }
 
+/* 旧的 hint-section 和 solution-section 样式已移动到 index.html 中的内联样式 */
+/* 保留此注释以避免破坏其他可能使用这些类的代码 */
 .hint-section, .solution-section {
-    display: none;
-    margin-top: var(--spacing-lg);
-    padding: var(--spacing-lg);
-    background: linear-gradient(135deg, #F8F9FA 0%, #F1F3F4 100%);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-medium);
-    box-shadow: var(--shadow-small);
-    animation: fadeIn var(--transition-normal) ease-out;
-}
-
-.hint-section.show, .solution-section.show {
-    display: block;
+    /* 样式已移动到 index.html 中的 .section-content */
 }
 
 @keyframes fadeIn {
