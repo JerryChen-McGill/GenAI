@@ -25,6 +25,378 @@
     
     <!-- Firebase 配置（必须在 Firebase SDK 之后加载） -->
     <script src="firebase-config.js"></script>
+    
+    <style>
+        /* ============================================
+           登录页面专用样式
+           ============================================ */
+        
+        /* 渐变背景 - 铺满整个屏幕 */
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: var(--font-family);
+        }
+        
+        /* 卡片容器 */
+        .login-card {
+            background: var(--background-white);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 600px;
+            min-width: 400px;
+            animation: slideUp 0.6s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 桌面端：卡片宽度至少40% */
+        @media (min-width: 1024px) {
+            .login-card {
+                width: 40%;
+                min-width: 500px;
+                max-width: 600px;
+            }
+        }
+        
+        /* 中等屏幕：卡片宽度50% */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .login-card {
+                width: 50%;
+                min-width: 450px;
+                max-width: 550px;
+            }
+        }
+        
+        /* 卡片加载动画 */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* 标题区域 */
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .login-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 8px 0;
+            letter-spacing: -0.02em;
+        }
+        
+        .login-subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.5;
+        }
+        
+        /* 表单容器 */
+        .login-form {
+            margin-top: 32px;
+        }
+        
+        /* 表单字段 */
+        .form-field {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: 0.01em;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: var(--font-family);
+            background: var(--background-white);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .form-input:disabled {
+            background: var(--background-light);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-tertiary);
+        }
+        
+        /* 消息提示 */
+        .message-box {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: fadeIn 0.3s ease-out;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message-success {
+            background: rgba(52, 199, 89, 0.1);
+            color: #34c759;
+            border: 1px solid rgba(52, 199, 89, 0.2);
+        }
+        
+        .message-error {
+            background: rgba(255, 59, 48, 0.1);
+            color: #ff3b30;
+            border: 1px solid rgba(255, 59, 48, 0.2);
+        }
+        
+        .message-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        /* 按钮组 */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 28px;
+        }
+        
+        /* 主按钮 - 渐变 */
+        .btn-primary {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            font-family: var(--font-family);
+            letter-spacing: 0.01em;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* 加载动画 */
+        .btn-primary.loading {
+            color: transparent;
+        }
+        
+        .btn-primary.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        /* 切换链接 */
+        .switch-link {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-light);
+        }
+        
+        .switch-link-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .switch-link-button {
+            /* 完全移除按钮样式，变成纯文本链接 */
+            background: none !important;
+            border: none !important;
+            outline: none !important;
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            text-decoration: none;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+            font-family: var(--font-family);
+            /* 移除浏览器默认按钮样式 */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            display: inline;
+            line-height: inherit;
+        }
+        
+        .switch-link-button:hover {
+            background: none !important;
+            border: none !important;
+            outline: none !important;
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
+        .switch-link-button:active,
+        .switch-link-button:focus {
+            background: none !important;
+            border: none !important;
+            outline: none !important;
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
+        .switch-link-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* 用户信息显示（调试用） */
+        .user-info {
+            margin-top: 24px;
+            padding: 16px;
+            background: var(--background-light);
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        
+        .user-info p {
+            margin: 0 0 12px 0;
+            color: var(--text-primary);
+        }
+        
+        .btn-logout {
+            width: 100%;
+            padding: 10px 20px;
+            background: var(--background-white);
+            color: var(--text-primary);
+            border: 2px solid var(--border-medium);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-family);
+        }
+        
+        .btn-logout:hover {
+            background: var(--background-light);
+            border-color: var(--text-secondary);
+        }
+        
+        /* 响应式设计 - 移动端 */
+        @media (max-width: 767px) {
+            .login-card {
+                padding: 32px 24px;
+                margin: 20px;
+                border-radius: 20px;
+                min-width: auto;
+                max-width: 100%;
+                width: calc(100% - 40px);
+            }
+            
+            .login-title {
+                font-size: 28px;
+            }
+            
+            .login-subtitle {
+                font-size: 14px;
+            }
+            
+            .form-input {
+                padding: 12px 14px;
+                font-size: 16px; /* 防止 iOS 缩放 */
+            }
+        }
+        
+        /* 小屏幕手机 */
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 28px 20px;
+                margin: 16px;
+            }
+        }
+        
+        /* 确保在桌面端也铺满屏幕 */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="app"></div>
@@ -211,8 +583,7 @@
                         
                         successMessage.value = 'Registration successful! Redirecting...';
                         
-                        // 注册成功后，用户自动登录，onAuthStateChanged 会触发
-                        // 可以在这里跳转到其他页面
+                        // 注册成功后，跳转到 Personalization 页面
                         setTimeout(() => {
                             window.location.href = '/personalization';
                         }, 1000);
@@ -331,9 +702,9 @@
                         
                         successMessage.value = 'Login successful! Redirecting...';
                         
-                        // 登录成功后跳转
+                        // 登录成功后跳转到主页
                         setTimeout(() => {
-                            window.location.href = '/personalization';
+                            window.location.href = '/main';
                         }, 1000);
                         
                     } catch (error) {
@@ -529,36 +900,44 @@
             },
 
             template: `
-                <div class="personalization-container" style="max-width: 500px;">
-                    <h1>{{ isLoginMode ? 'Login' : 'Register' }}</h1>
+                <div class="login-card">
+                    <!-- 标题区域 -->
+                    <div class="login-header">
+                        <h1 class="login-title">{{ isLoginMode ? 'Welcome Back' : 'Create Account' }}</h1>
+                        <p class="login-subtitle">
+                            {{ isLoginMode ? 'Sign in to continue to your account' : 'Get started with your free account today' }}
+                        </p>
+                    </div>
                     
                     <!-- 成功消息 -->
-                    <div v-if="successMessage" style="color: var(--success-green); margin-bottom: 16px; padding: 12px; background: rgba(52, 199, 89, 0.1); border-radius: 8px;">
-                        {{ successMessage }}
+                    <div v-if="successMessage" class="message-box message-success">
+                        <span class="message-icon">✓</span>
+                        <span>{{ successMessage }}</span>
                     </div>
                     
                     <!-- 错误消息 -->
-                    <div v-if="errorMessage" style="color: #ff3b30; margin-bottom: 16px; padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px;">
-                        {{ errorMessage }}
+                    <div v-if="errorMessage" class="message-box message-error">
+                        <span class="message-icon">✕</span>
+                        <span>{{ errorMessage }}</span>
                     </div>
                     
                     <!-- 登录表单 -->
-                    <form @submit.prevent="handleSubmit">
-                        <div class="question">
-                            <label for="email">Email:</label>
+                    <form @submit.prevent="handleSubmit" class="login-form">
+                        <div class="form-field">
+                            <label for="email" class="form-label">Email Address</label>
                             <input 
                                 type="email" 
                                 id="email"
                                 v-model="email"
-                                placeholder="Enter your email"
+                                placeholder="you@example.com"
                                 :disabled="isLoading"
                                 required
-                                style="width: 100%; padding: 12px; border: 2px solid var(--border-light); border-radius: 8px; font-size: 16px;"
+                                class="form-input"
                             />
                         </div>
                         
-                        <div class="question">
-                            <label for="password">Password:</label>
+                        <div class="form-field">
+                            <label for="password" class="form-label">Password</label>
                             <input 
                                 type="password" 
                                 id="password"
@@ -567,13 +946,13 @@
                                 :disabled="isLoading"
                                 required
                                 minlength="6"
-                                style="width: 100%; padding: 12px; border: 2px solid var(--border-light); border-radius: 8px; font-size: 16px;"
+                                class="form-input"
                             />
                         </div>
                         
                         <!-- 注册模式：确认密码 -->
-                        <div class="question" v-if="!isLoginMode">
-                            <label for="confirmPassword">Confirm Password:</label>
+                        <div class="form-field" v-if="!isLoginMode">
+                            <label for="confirmPassword" class="form-label">Confirm Password</label>
                             <input 
                                 type="password" 
                                 id="confirmPassword"
@@ -582,34 +961,42 @@
                                 :disabled="isLoading"
                                 required
                                 minlength="6"
-                                style="width: 100%; padding: 12px; border: 2px solid var(--border-light); border-radius: 8px; font-size: 16px;"
+                                class="form-input"
                             />
                         </div>
                         
                         <div class="button-group">
                             <button 
-                                type="button"
-                                class="skip-btn" 
-                                @click="toggleMode"
-                                :disabled="isLoading"
-                            >
-                                {{ isLoginMode ? 'Need an account? Register' : 'Already have an account? Login' }}
-                            </button>
-                            <button 
                                 type="submit"
-                                class="next-btn" 
+                                class="btn-primary"
+                                :class="{ loading: isLoading }"
                                 :disabled="isLoading"
                             >
-                                <span v-if="!isLoading">{{ isLoginMode ? 'Login' : 'Register' }}</span>
-                                <span v-else>Processing...</span>
+                                <span v-if="!isLoading">{{ isLoginMode ? 'Sign In' : 'Create Account' }}</span>
+                                <span v-else>{{ isLoginMode ? 'Signing In...' : 'Creating Account...' }}</span>
                             </button>
                         </div>
                     </form>
                     
+                    <!-- 切换链接 -->
+                    <div class="switch-link">
+                        <p class="switch-link-text">
+                            {{ isLoginMode ? "Don't have an account?" : 'Already have an account?' }}
+                        </p>
+                        <button 
+                            type="button"
+                            class="switch-link-button"
+                            @click="toggleMode"
+                            :disabled="isLoading"
+                        >
+                            {{ isLoginMode ? 'Sign Up' : 'Sign In' }}
+                        </button>
+                    </div>
+                    
                     <!-- 当前用户信息（调试用） -->
-                    <div v-if="currentUser" style="margin-top: 24px; padding: 16px; background: var(--background-light); border-radius: 8px; font-size: 14px;">
+                    <div v-if="currentUser" class="user-info">
                         <p><strong>Logged in as:</strong> {{ currentUser.email }}</p>
-                        <button @click="logout" class="skip-btn" style="margin-top: 8px;">Logout</button>
+                        <button @click="logout" class="btn-logout">Logout</button>
                     </div>
                 </div>
             `

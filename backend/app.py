@@ -34,7 +34,8 @@ if not os.environ.get("API_KEY"):
 
 @app.route('/')
 def index():
-    return send_from_directory(app.static_folder, 'login.html')
+    # 直接显示主页，不再强制跳转到登录页
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/login')
 def login():

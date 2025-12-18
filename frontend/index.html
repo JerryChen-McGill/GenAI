@@ -42,9 +42,9 @@
                 <div class="sidebar-menu-item-icon">👤</div>
                 <div class="sidebar-menu-item-text">My Account</div>
             </div>
-            <div class="sidebar-menu-item" id="menuItemPrompt">
-                <div class="sidebar-menu-item-icon">⚙️</div>
-                <div class="sidebar-menu-item-text">My Prompt Setting</div>
+            <div class="sidebar-menu-item" id="menuItemInterest">
+                <div class="sidebar-menu-item-icon">❤️</div>
+                <div class="sidebar-menu-item-text">My Interest</div>
             </div>
         </nav>
         
@@ -96,26 +96,27 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" id="accountModalCancel">取消</button>
-                <button class="modal-btn modal-btn-save" id="accountModalSave">保存</button>
+                <button class="modal-btn modal-btn-cancel" id="accountModalLogout">Log out</button>
+                <button class="modal-btn modal-btn-save" id="accountModalSave">Save</button>
             </div>
         </div>
     </div>
     
-    <!-- 偏好设置模态框 -->
-    <div class="modal-overlay" id="preferenceModalOverlay">
-        <div class="modal" id="preferenceModal">
+    <!-- 兴趣偏好模态框 -->
+    <div class="modal-overlay" id="interestModalOverlay">
+        <div class="modal" id="interestModal">
             <div class="modal-header">
-                <h2>My Prompt Setting</h2>
-                <button class="modal-close-btn" id="preferenceModalClose">✕</button>
+                <h2>My Interest</h2>
+                <button class="modal-close-btn" id="interestModalClose">✕</button>
             </div>
             <div class="modal-content">
-                <div id="preferenceContent">
-                    <!-- 偏好设置内容将通过 JavaScript 动态加载 -->
+                <div id="interestContent">
+                    <!-- 兴趣偏好内容将通过 JavaScript 动态加载 -->
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" id="preferenceModalCancel">关闭</button>
+                <button class="modal-btn modal-btn-cancel" id="interestModalCancel">关闭</button>
+                <button class="modal-btn modal-btn-save" id="interestModalGoToSettings">Go to Settings</button>
             </div>
         </div>
     </div>
@@ -188,7 +189,7 @@
             <button id="showTagInputBtn" class="add-tag-btn">+</button>
 
             <div class="more-options-link" id="savePromptBtn" style="margin-top: var(--spacing-lg);">Save Prompt</div>
-            
+
             <button id="generateBtn"><span>Generate</span></button>
         </div>
         <div class="panel right-panel">
@@ -899,10 +900,9 @@
                 closePromptDetailModal();
             }
         });
-        
-        // 页面加载时检查用户偏好并加载
+
+        // 页面加载时加载用户偏好和Prompt列表（不再强制跳转）
         window.onload = function() {
-            checkUserPreferences();
             loadUserPreferences();
             loadPromptsList(); // 加载 Prompt 列表
         };
@@ -975,13 +975,6 @@
         const accountModalCancel = document.getElementById('accountModalCancel');
         const accountModalSave = document.getElementById('accountModalSave');
         
-        // 偏好设置模态框
-        const preferenceModalOverlay = document.getElementById('preferenceModalOverlay');
-        const preferenceModal = document.getElementById('preferenceModal');
-        const preferenceModalClose = document.getElementById('preferenceModalClose');
-        const preferenceModalCancel = document.getElementById('preferenceModalCancel');
-        const preferenceContent = document.getElementById('preferenceContent');
-        
         /**
          * 打开账户信息模态框
          */
@@ -992,27 +985,26 @@
                 user = firebase.auth().currentUser;
             }
             
-            if (user) {
-                // 设置邮箱
-                document.getElementById('accountEmail').value = user.email || '';
-                
-                // 设置头像初始字母
-                const avatar = document.getElementById('accountAvatar');
-                const email = user.email || '';
-                const initials = email.substring(0, 2).toUpperCase();
-                avatar.textContent = initials;
-                
-                // 从 localStorage 获取显示名称和用户名（如果已保存）
-                const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-                document.getElementById('accountDisplayName').value = userProfile.displayName || '';
-                document.getElementById('accountUsername').value = userProfile.username || email.split('@')[0] || '';
-            } else {
-                // 未登录用户
-                document.getElementById('accountEmail').value = 'Not logged in';
-                document.getElementById('accountAvatar').textContent = '?';
-                document.getElementById('accountDisplayName').value = '';
-                document.getElementById('accountUsername').value = '';
+            // 如果未登录，跳转到登录页面
+            if (!user) {
+                window.location.href = '/login';
+                return;
             }
+            
+            // 已登录用户，显示账户信息
+            // 设置邮箱
+            document.getElementById('accountEmail').value = user.email || '';
+            
+            // 设置头像初始字母
+            const avatar = document.getElementById('accountAvatar');
+            const email = user.email || '';
+            const initials = email.substring(0, 2).toUpperCase();
+            avatar.textContent = initials;
+            
+            // 从 localStorage 获取显示名称和用户名（如果已保存）
+            const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+            document.getElementById('accountDisplayName').value = userProfile.displayName || '';
+            document.getElementById('accountUsername').value = userProfile.username || email.split('@')[0] || '';
             
             accountModalOverlay.classList.add('show');
             document.body.style.overflow = 'hidden';
@@ -1049,24 +1041,47 @@
         }
         
         /**
-         * 打开偏好设置模态框
+         * 用户登出
          */
-        function openPreferenceModal() {
-            // 从 localStorage 读取用户偏好
+        async function logoutUser() {
+            try {
+                if (typeof firebase !== 'undefined' && firebase.auth) {
+                    await firebase.auth().signOut();
+                    console.log('用户已登出');
+                    
+                    // 登出后关闭模态框并刷新跳转到主页（未登录状态）
+                    closeAccountModal();
+                    window.location.href = '/';
+                } else {
+                    console.error('Firebase 未正确初始化');
+                    alert('登出失败，请刷新页面重试。');
+                }
+            } catch (error) {
+                console.error('登出错误:', error);
+                alert('登出失败，请重试。');
+            }
+        }
+        
+        /**
+         * 打开兴趣偏好模态框
+         */
+        function openInterestModal() {
+            // 从 localStorage 读取用户偏好（Personalization页面存储的内容）
             const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
             
             // 清空内容区域
-            preferenceContent.innerHTML = '';
+            const interestContent = document.getElementById('interestContent');
+            interestContent.innerHTML = '';
             
             // 检查是否有偏好数据
-            if (Object.keys(preferences).length === 0) {
-                preferenceContent.innerHTML = '<div class="preference-empty">暂无偏好设置</div>';
+            if (Object.keys(preferences).length === 0 || (!preferences.question1 && !preferences.question2 && !preferences.question3)) {
+                interestContent.innerHTML = '<div class="preference-empty">No interest preferences set. Please go to Personalization page to set your preferences.</div>';
             } else {
-                // 显示偏好设置
-                const preferenceDisplay = document.createElement('div');
-                preferenceDisplay.className = 'preference-display';
+                // 显示兴趣偏好
+                const interestDisplay = document.createElement('div');
+                interestDisplay.className = 'preference-display';
                 
-                // 显示三个问题的答案
+                // 显示三个问题的答案（来自Personalization页面）
                 if (preferences.question1) {
                     const item1 = document.createElement('div');
                     item1.className = 'preference-item';
@@ -1074,7 +1089,7 @@
                         <div class="preference-label">What are your hobbies? (兴趣爱好)</div>
                         <div class="preference-value">${preferences.question1}</div>
                     `;
-                    preferenceDisplay.appendChild(item1);
+                    interestDisplay.appendChild(item1);
                 }
                 
                 if (preferences.question2) {
@@ -1084,37 +1099,48 @@
                         <div class="preference-label">What topics are you interested in? (感兴趣的话题)</div>
                         <div class="preference-value">${preferences.question2}</div>
                     `;
-                    preferenceDisplay.appendChild(item2);
+                    interestDisplay.appendChild(item2);
                 }
                 
                 if (preferences.question3) {
                     const item3 = document.createElement('div');
                     item3.className = 'preference-item';
                     item3.innerHTML = `
-                        <div class="preference-label">What types of content do you enjoy? (喜欢的内容类型)</div>
+                        <div class="preference-label">What types of books and videos do you usually enjoy? (喜欢的内容类型)</div>
                         <div class="preference-value">${preferences.question3}</div>
                     `;
-                    preferenceDisplay.appendChild(item3);
+                    interestDisplay.appendChild(item3);
                 }
                 
-                preferenceContent.appendChild(preferenceDisplay);
+                interestContent.appendChild(interestDisplay);
             }
             
-            preferenceModalOverlay.classList.add('show');
+            const interestModalOverlay = document.getElementById('interestModalOverlay');
+            interestModalOverlay.classList.add('show');
             document.body.style.overflow = 'hidden';
         }
         
         /**
-         * 关闭偏好设置模态框
+         * 跳转到 Personalization 页面
          */
-        function closePreferenceModal() {
-            preferenceModalOverlay.classList.remove('show');
+        function goToPersonalization() {
+            window.location.href = '/personalization';
+        }
+        
+        /**
+         * 关闭兴趣偏好模态框
+         */
+        function closeInterestModal() {
+            const interestModalOverlay = document.getElementById('interestModalOverlay');
+            interestModalOverlay.classList.remove('show');
             document.body.style.overflow = '';
         }
         
         // 账户信息模态框事件
+        const accountModalLogout = document.getElementById('accountModalLogout');
+        
         accountModalClose.addEventListener('click', closeAccountModal);
-        accountModalCancel.addEventListener('click', closeAccountModal);
+        accountModalLogout.addEventListener('click', logoutUser);
         accountModalSave.addEventListener('click', saveAccountInfo);
         accountModalOverlay.addEventListener('click', function(e) {
             if (e.target === accountModalOverlay) {
@@ -1122,12 +1148,21 @@
             }
         });
         
-        // 偏好设置模态框事件
-        preferenceModalClose.addEventListener('click', closePreferenceModal);
-        preferenceModalCancel.addEventListener('click', closePreferenceModal);
-        preferenceModalOverlay.addEventListener('click', function(e) {
-            if (e.target === preferenceModalOverlay) {
-                closePreferenceModal();
+        // 兴趣偏好模态框事件
+        const interestModalOverlay = document.getElementById('interestModalOverlay');
+        const interestModalClose = document.getElementById('interestModalClose');
+        const interestModalCancel = document.getElementById('interestModalCancel');
+        const interestModalGoToSettings = document.getElementById('interestModalGoToSettings');
+        
+        interestModalClose.addEventListener('click', closeInterestModal);
+        interestModalCancel.addEventListener('click', closeInterestModal);
+        interestModalGoToSettings.addEventListener('click', function() {
+            closeInterestModal();
+            goToPersonalization();
+        });
+        interestModalOverlay.addEventListener('click', function(e) {
+            if (e.target === interestModalOverlay) {
+                closeInterestModal();
             }
         });
         
@@ -1137,8 +1172,8 @@
                 if (accountModalOverlay.classList.contains('show')) {
                     closeAccountModal();
                 }
-                if (preferenceModalOverlay.classList.contains('show')) {
-                    closePreferenceModal();
+                if (interestModalOverlay.classList.contains('show')) {
+                    closeInterestModal();
                 }
                 if (promptDetailModalOverlay.classList.contains('show')) {
                     closePromptDetailModal();
@@ -1148,7 +1183,7 @@
         
         // 菜单项点击事件
         const menuItemAccount = document.getElementById('menuItemAccount');
-        const menuItemPrompt = document.getElementById('menuItemPrompt');
+        const menuItemInterest = document.getElementById('menuItemInterest');
         
         menuItemAccount.addEventListener('click', function() {
             closeSidebar();
@@ -1157,10 +1192,11 @@
             }, 200);
         });
         
-        menuItemPrompt.addEventListener('click', function() {
-            // 点击菜单项时，只关闭侧边栏，不显示模态框
-            // Prompt 列表已经在侧边栏中显示
+        menuItemInterest.addEventListener('click', function() {
             closeSidebar();
+            setTimeout(() => {
+                openInterestModal();
+            }, 200);
         });
         
         // ============================================
