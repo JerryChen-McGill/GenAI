@@ -53,4 +53,8 @@ APIkey.env
 *.key
 secrets.json
 api_keys.txt
-.env.* 
+.env.*
+
+# 项目文档（个人理解用，不上传）
+CODE_FILES_GUIDE.md
+TECH_STACK_GUIDE.md 

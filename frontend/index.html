@@ -46,23 +46,31 @@
                 <div class="sidebar-menu-item-icon">❤️</div>
                 <div class="sidebar-menu-item-text">My Interest</div>
             </div>
+            
+            <!-- My Prompts 可展开菜单项 -->
+            <div class="sidebar-menu-item expandable-menu-item" id="menuItemPrompts">
+                <div class="sidebar-menu-item-icon">📝</div>
+                <div class="sidebar-menu-item-text">My Prompts</div>
+                <div class="sidebar-menu-item-arrow">▶</div>
+            </div>
+            <div class="expandable-menu-content" id="promptsListContent">
+                <div class="favorites-list" id="promptsList">
+                    <!-- Prompt 列表将通过 JavaScript 动态加载 -->
+                </div>
+            </div>
+            
+            <!-- My Questions 可展开菜单项 -->
+            <div class="sidebar-menu-item expandable-menu-item" id="menuItemQuestions">
+                <div class="sidebar-menu-item-icon">📚</div>
+                <div class="sidebar-menu-item-text">My Questions</div>
+                <div class="sidebar-menu-item-arrow">▶</div>
+            </div>
+            <div class="expandable-menu-content" id="questionsListContent">
+                <div class="favorites-list" id="favoritesList">
+                    <!-- 收藏列表将通过 JavaScript 动态加载 -->
+                </div>
+            </div>
         </nav>
-        
-        <!-- Prompt 列表区域 -->
-        <div class="favorites-section">
-            <div class="favorites-header">My Prompt Setting</div>
-            <div class="favorites-list" id="promptsList">
-                <!-- Prompt 列表将通过 JavaScript 动态加载 -->
-            </div>
-        </div>
-        
-        <!-- 收藏列表区域 -->
-        <div class="favorites-section">
-            <div class="favorites-header">My Question Collection</div>
-            <div class="favorites-list" id="favoritesList">
-                <!-- 收藏列表将通过 JavaScript 动态加载 -->
-            </div>
-        </div>
     </div>
     
     <!-- 账户信息模态框 -->
@@ -144,7 +152,7 @@
         <div class="panel left-panel">
             <h1>What you want to learn?</h1>
             
-            <h3 for="topic">I want to learn:</h3>
+            <h3 for="topic">The topic I want to learn:</h3>
             <input type="text" id="topic" placeholder="e.g., addition, subtraction, multiplication">
 
             <div class="more-options-link" id="moreBtn">More Options</div>
@@ -178,7 +186,7 @@
                 <input type="text" id="requirements" placeholder="e.g., word problems, step-by-step solutions">
             </div>
             
-            <h3>and I want to involve:</h3>
+            <h3>The topics I want to include in the question:</h3>
             <div class="tag-container" id="tagContainer">
                 <!-- 标签将通过JavaScript动态添加 -->
             </div>
@@ -666,7 +674,7 @@
             promptsList.innerHTML = '';
             
             if (savedPrompts.length === 0) {
-                promptsList.innerHTML = '<div class="favorites-empty">暂无保存的 Prompt</div>';
+                promptsList.innerHTML = '<div class="favorites-empty">No saved prompts</div>';
                 return;
             }
             
@@ -697,6 +705,7 @@
                     if (e.target.classList.contains('favorite-item-delete')) {
                         return;
                     }
+                    e.stopPropagation(); // 阻止事件冒泡到父级
                     showPromptDetail(prompt);
                     // 添加激活状态
                     document.querySelectorAll('#promptsList .favorite-item').forEach(i => i.classList.remove('active'));
@@ -1086,7 +1095,7 @@
                     const item1 = document.createElement('div');
                     item1.className = 'preference-item';
                     item1.innerHTML = `
-                        <div class="preference-label">What are your hobbies? (兴趣爱好)</div>
+                        <div class="preference-label">What are your hobbies?</div>
                         <div class="preference-value">${preferences.question1}</div>
                     `;
                     interestDisplay.appendChild(item1);
@@ -1096,7 +1105,7 @@
                     const item2 = document.createElement('div');
                     item2.className = 'preference-item';
                     item2.innerHTML = `
-                        <div class="preference-label">What topics are you interested in? (感兴趣的话题)</div>
+                        <div class="preference-label">What topics are you interested in?</div>
                         <div class="preference-value">${preferences.question2}</div>
                     `;
                     interestDisplay.appendChild(item2);
@@ -1106,7 +1115,7 @@
                     const item3 = document.createElement('div');
                     item3.className = 'preference-item';
                     item3.innerHTML = `
-                        <div class="preference-label">What types of books and videos do you usually enjoy? (喜欢的内容类型)</div>
+                        <div class="preference-label">What types of books and videos do you usually enjoy?</div>
                         <div class="preference-value">${preferences.question3}</div>
                     `;
                     interestDisplay.appendChild(item3);
@@ -1184,6 +1193,8 @@
         // 菜单项点击事件
         const menuItemAccount = document.getElementById('menuItemAccount');
         const menuItemInterest = document.getElementById('menuItemInterest');
+        const menuItemPrompts = document.getElementById('menuItemPrompts');
+        const menuItemQuestions = document.getElementById('menuItemQuestions');
         
         menuItemAccount.addEventListener('click', function() {
             closeSidebar();
@@ -1197,6 +1208,40 @@
             setTimeout(() => {
                 openInterestModal();
             }, 200);
+        });
+        
+        // My Prompts 展开/收起功能
+        menuItemPrompts.addEventListener('click', function() {
+            const promptsListContent = document.getElementById('promptsListContent');
+            const arrow = this.querySelector('.sidebar-menu-item-arrow');
+            const isExpanded = promptsListContent.classList.contains('expanded');
+            
+            if (isExpanded) {
+                promptsListContent.classList.remove('expanded');
+                arrow.textContent = '▶';
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                promptsListContent.classList.add('expanded');
+                arrow.textContent = '▼';
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        });
+        
+        // My Questions 展开/收起功能
+        menuItemQuestions.addEventListener('click', function() {
+            const questionsListContent = document.getElementById('questionsListContent');
+            const arrow = this.querySelector('.sidebar-menu-item-arrow');
+            const isExpanded = questionsListContent.classList.contains('expanded');
+            
+            if (isExpanded) {
+                questionsListContent.classList.remove('expanded');
+                arrow.textContent = '▶';
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                questionsListContent.classList.add('expanded');
+                arrow.textContent = '▼';
+                arrow.style.transform = 'rotate(0deg)';
+            }
         });
         
         // ============================================
@@ -1270,7 +1315,7 @@
             favoritesList.innerHTML = '';
             
             if (favorites.length === 0) {
-                favoritesList.innerHTML = '<div class="favorites-empty">暂无收藏</div>';
+                favoritesList.innerHTML = '<div class="favorites-empty">No favorites</div>';
                 return;
             }
             
@@ -1301,6 +1346,7 @@
                     if (e.target.classList.contains('favorite-item-delete')) {
                         return;
                     }
+                    e.stopPropagation(); // 阻止事件冒泡到父级
                     loadFavoriteQuestion(favorite);
                     // 添加激活状态
                     document.querySelectorAll('.favorite-item').forEach(i => i.classList.remove('active'));

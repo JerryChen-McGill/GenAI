@@ -1,1 +1,1 @@
-web: python app-BigModel.py 
+web: python app.py 

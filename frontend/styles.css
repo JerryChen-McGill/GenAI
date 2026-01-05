@@ -853,6 +853,33 @@ button.generating::before {
     font-weight: 500;
 }
 
+.sidebar-menu-item-arrow {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    transition: transform var(--transition-fast);
+    margin-left: var(--spacing-sm);
+}
+
+.expandable-menu-item {
+    cursor: pointer;
+}
+
+.expandable-menu-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-normal) ease-out;
+    background: var(--background-light);
+}
+
+.expandable-menu-content.expanded {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.expandable-menu-content .favorites-list {
+    padding: var(--spacing-xs) 0;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .sidebar {
@@ -1105,7 +1132,6 @@ button.generating::before {
     text-align: center;
     padding: var(--spacing-xl);
     color: var(--text-secondary);
-    font-style: italic;
 }
 
 /* ============================================
@@ -1166,6 +1192,11 @@ button.generating::before {
 .favorites-list {
     max-height: 400px;
     overflow-y: auto;
+}
+
+.expandable-menu-content .favorites-list {
+    max-height: none;
+    overflow-y: visible;
 }
 
 .favorite-item {
@@ -1235,7 +1266,6 @@ button.generating::before {
     padding: var(--spacing-xl);
     text-align: center;
     color: var(--text-secondary);
-    font-style: italic;
     font-size: var(--font-size-sm);
 }
 
