@@ -107,11 +107,42 @@ try {
 
 /**
  * ============================================
+ * Firebase Firestore 服务
+ * ============================================
+ * 
+ * 获取 Firebase Firestore 服务
+ * 
+ * Firestore 提供：
+ * - 文档数据库（NoSQL）
+ * - 实时数据同步
+ * - 离线支持
+ * - 复杂查询
+ * 
+ * 工作原理：
+ * 1. Firestore 使用集合（collections）和文档（documents）组织数据
+ * 2. 数据以 JSON 格式存储
+ * 3. 支持实时监听数据变化
+ * 4. 自动处理离线缓存
+ * 5. 通过安全规则控制访问权限
+ */
+try {
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+        const db = firebase.firestore();
+        console.log('Firestore 服务获取成功');
+    } else {
+        console.error('错误: Firestore 服务不可用（请确保已引入 firestore SDK）');
+    }
+} catch (error) {
+    console.error('获取 Firestore 服务错误:', error);
+}
+
+/**
+ * ============================================
  * 导出供其他文件使用
  * ============================================
  * 
  * 如果使用模块系统（ES6 modules），可以这样导出：
- * export { auth, app };
+ * export { auth, app, db };
  * 
  * 但在这个项目中，我们使用全局变量，所以不需要导出
  * 其他文件可以直接使用 window.auth 或直接使用 auth（如果在全局作用域）

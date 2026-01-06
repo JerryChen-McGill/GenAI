@@ -14,6 +14,7 @@
     -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <!-- Firebase 配置 -->
     <script src="firebase-config.js"></script>
@@ -215,7 +216,7 @@
                  * - 不需要手动操作 DOM
                  * - 代码更简洁，逻辑更清晰
                  */
-                const saveAnswer = () => {
+                const saveAnswer = async () => {
                     // 获取当前问题的答案（已经通过 v-model 自动同步）
                     const questionKey = `question${currentQuestion.value}`;
                     const answer = answers[questionKey];
@@ -223,12 +224,12 @@
                     console.log(`保存问题 ${currentQuestion.value} 的答案:`, answer);
                     console.log('当前所有答案:', answers);
             
-                    // 保存到 localStorage（持久化存储，刷新页面后数据不丢失）
+                    // 保存到 DataService（自动选择 Firestore 或 localStorage）
             try {
-                localStorage.setItem('userPreferences', JSON.stringify(answers));
-                        console.log('成功保存到 localStorage');
+                        await DataService.saveUserPreferences(answers);
+                        console.log('成功保存用户偏好');
             } catch (error) {
-                        console.error('保存到 localStorage 失败:', error);
+                        console.error('保存用户偏好失败:', error);
             }
                 };
 
@@ -240,11 +241,11 @@
                  * - 修改后，Vue 会自动检测变化并更新视图
                  * - 相关的计算属性（如 progressText）也会自动重新计算
                  */
-                const nextQuestion = () => {
+                const nextQuestion = async () => {
                     console.log('nextQuestion 被调用，当前问题:', currentQuestion.value);
                     
                     // 保存当前答案
-            saveAnswer();
+                    await saveAnswer();
                     
                     // 如果还有下一个问题，切换到下一个
                     if (currentQuestion.value < totalQuestions) {
@@ -333,7 +334,7 @@
                      * - onAuthStateChanged 会在认证状态确定后触发
                      * - 更可靠，确保获取到最新的认证状态
                      */
-                    const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                    const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
                         if (!user) {
                             // 用户未登录，重定向到登录页面
                             console.log('用户未登录，重定向到登录页面');
@@ -345,11 +346,10 @@
                         console.log('用户已登录:', user.email);
                         console.log('用户 ID:', user.uid);
                         
-                        // 从 localStorage 加载已保存的答案
-            const savedAnswers = localStorage.getItem('userPreferences');
-            if (savedAnswers) {
-                            try {
-                const parsedAnswers = JSON.parse(savedAnswers);
+                        // 从 DataService 加载已保存的答案
+                        try {
+                            const parsedAnswers = await DataService.getUserPreferences();
+                            if (Object.keys(parsedAnswers).length > 0) {
                                 console.log('加载的答案:', parsedAnswers);
                                 
                                 // 将加载的数据合并到响应式对象中
@@ -362,9 +362,9 @@
                                 });
                                 
                                 console.log('答案已加载到响应式对象:', answers);
-                            } catch (error) {
-                                console.error('解析 localStorage 数据失败:', error);
                             }
+                        } catch (error) {
+                            console.error('加载用户偏好失败:', error);
                         }
                     });
                     

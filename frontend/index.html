@@ -7,9 +7,10 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     
-    <!-- Firebase SDK for Authentication -->
+    <!-- Firebase SDK for Authentication and Firestore -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script>
         // 确保 marked 可用
@@ -73,6 +74,30 @@
         </nav>
     </div>
     
+    <!-- 未登录提示模态框（My Account 未登录时显示） -->
+    <div class="modal-overlay" id="accountGuestModalOverlay">
+        <div class="modal" id="accountGuestModal">
+            <div class="modal-header">
+                <h2>My Account</h2>
+                <button class="modal-close-btn" id="accountGuestModalClose">✕</button>
+            </div>
+            <div class="modal-content">
+                <div class="preference-display" style="margin-bottom: 0;">
+                    <div class="preference-item">
+                        <div class="preference-label">You are not logged in</div>
+                        <div class="preference-value">
+                            Your data is currently stored locally in your browser (localStorage). After you log in, your data can be stored securely in the cloud and synced across devices.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="accountGuestModalCancel">Close</button>
+                <button class="modal-btn modal-btn-save" id="accountGuestModalLogin">Login</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 账户信息模态框 -->
     <div class="modal-overlay" id="accountModalOverlay">
         <div class="modal" id="accountModal">
@@ -123,7 +148,7 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" id="interestModalCancel">关闭</button>
+                <button class="modal-btn modal-btn-cancel" id="interestModalCancel">Close</button>
                 <button class="modal-btn modal-btn-save" id="interestModalGoToSettings">Go to Settings</button>
             </div>
         </div>
@@ -142,7 +167,7 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" id="promptDetailModalCancel">关闭</button>
+                <button class="modal-btn modal-btn-cancel" id="promptDetailModalCancel">Close</button>
                 <button class="modal-btn modal-btn-save" id="promptDetailModalImport">Import</button>
             </div>
         </div>
@@ -228,7 +253,336 @@
     </div>
 
     <script>
+        // ============================================
+        // DataService - 数据访问抽象层
+        // ============================================
+        // 统一管理 localStorage 和 Firestore 的数据访问
+        // 登录用户使用 Firestore，未登录用户使用 localStorage
+        
+        const DataService = {
+            // 检查是否使用 Firestore（根据用户是否登录决定）
+            useFirestore() {
+                if (typeof firebase === 'undefined' || !firebase.auth) {
+                    return false;
+                }
+                const user = firebase.auth().currentUser;
+                return user !== null; // 登录用户使用 Firestore，未登录使用 localStorage
+            },
+            
+            // ========== 用户偏好 ==========
+            async getUserPreferences() {
+                if (this.useFirestore()) {
+                    return await this.getUserPreferencesFromFirestore();
+                } else {
+                    return this.getUserPreferencesFromLocalStorage();
+                }
+            },
+            
+            getUserPreferencesFromLocalStorage() {
+                return JSON.parse(localStorage.getItem('userPreferences') || '{}');
+            },
+            
+            async getUserPreferencesFromFirestore() {
+                const user = firebase.auth().currentUser;
+                if (!user) return {};
+                
+                try {
+                    const doc = await firebase.firestore()
+                        .collection('userPreferences')
+                        .doc(user.uid)
+                        .get();
+                    
+                    return doc.exists ? doc.data() : {};
+                } catch (error) {
+                    console.error('读取用户偏好失败:', error);
+                    // 降级到 localStorage
+                    return this.getUserPreferencesFromLocalStorage();
+                }
+            },
+            
+            async saveUserPreferences(preferences) {
+                if (this.useFirestore()) {
+                    await this.saveUserPreferencesToFirestore(preferences);
+                } else {
+                    this.saveUserPreferencesToLocalStorage(preferences);
+                }
+            },
+            
+            saveUserPreferencesToLocalStorage(preferences) {
+                localStorage.setItem('userPreferences', JSON.stringify(preferences));
+            },
+            
+            async saveUserPreferencesToFirestore(preferences) {
+                const user = firebase.auth().currentUser;
+                if (!user) throw new Error('用户未登录');
+                
+                try {
+                    await firebase.firestore()
+                        .collection('userPreferences')
+                        .doc(user.uid)
+                        .set({
+                            ...preferences,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                } catch (error) {
+                    console.error('保存用户偏好失败:', error);
+                    // 降级到 localStorage
+                    this.saveUserPreferencesToLocalStorage(preferences);
+                }
+            },
+            
+            // ========== 收藏题目 ==========
+            async getFavorites() {
+                if (this.useFirestore()) {
+                    return await this.getFavoritesFromFirestore();
+                } else {
+                    return this.getFavoritesFromLocalStorage();
+                }
+            },
+            
+            getFavoritesFromLocalStorage() {
+                return JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+            },
+            
+            async getFavoritesFromFirestore() {
+                const user = firebase.auth().currentUser;
+                if (!user) return [];
+                
+                try {
+                    const snapshot = await firebase.firestore()
+                        .collection('favorites')
+                        .where('userId', '==', user.uid)
+                        .orderBy('createdAt', 'desc')
+                        .get();
+                    
+                    return snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            problem: data.problem || '',
+                            hints: data.hints || '',
+                            solution: data.solution || '',
+                            answer: data.answer || '',
+                            title: data.title || '',
+                            createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString()
+                        };
+                    });
+                } catch (error) {
+                    console.error('读取收藏失败:', error);
+                    // 降级到 localStorage
+                    return this.getFavoritesFromLocalStorage();
+                }
+            },
+            
+            async saveFavorite(favoriteData, wasFavorited = false) {
+                if (this.useFirestore()) {
+                    await this.saveFavoriteToFirestore(favoriteData, wasFavorited);
+                } else {
+                    this.saveFavoriteToLocalStorage(favoriteData, wasFavorited);
+                }
+            },
+            
+            saveFavoriteToLocalStorage(favoriteData, wasFavorited) {
+                const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+                const problemHash = favoriteData.problem.substring(0, 200).trim();
+                const existingIndex = favorites.findIndex(fav => {
+                    const favProblemHash = fav.problem.substring(0, 200).trim();
+                    return favProblemHash === problemHash;
+                });
+                
+                if (wasFavorited || existingIndex !== -1) {
+                    if (existingIndex !== -1) {
+                        favorites.splice(existingIndex, 1);
+                    }
+                } else {
+                    const favoriteItem = {
+                        id: Date.now().toString(),
+                        problem: favoriteData.problem,
+                        hints: favoriteData.hints || '',
+                        solution: favoriteData.solution || '',
+                        answer: favoriteData.answer || '',
+                        title: getProblemTitle(favoriteData.problem),
+                        createdAt: new Date().toISOString()
+                    };
+                    favorites.unshift(favoriteItem);
+                }
+                
+                localStorage.setItem('favoriteQuestions', JSON.stringify(favorites));
+            },
+            
+            async saveFavoriteToFirestore(favoriteData, wasFavorited) {
+                const user = firebase.auth().currentUser;
+                if (!user) throw new Error('用户未登录');
+                
+                try {
+                    const db = firebase.firestore();
+                    const problemHash = favoriteData.problem.substring(0, 200).trim();
+                    
+                    // 检查是否已存在
+                    const existingSnapshot = await db.collection('favorites')
+                        .where('userId', '==', user.uid)
+                        .where('problemHash', '==', problemHash)
+                        .get();
+                    
+                    if (wasFavorited || !existingSnapshot.empty) {
+                        // 删除收藏
+                        if (!existingSnapshot.empty) {
+                            await existingSnapshot.docs[0].ref.delete();
+                        }
+                    } else {
+                        // 添加收藏
+                        await db.collection('favorites').add({
+                            userId: user.uid,
+                            problem: favoriteData.problem,
+                            hints: favoriteData.hints || '',
+                            solution: favoriteData.solution || '',
+                            answer: favoriteData.answer || '',
+                            problemHash: problemHash,
+                            title: getProblemTitle(favoriteData.problem),
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                } catch (error) {
+                    console.error('保存收藏失败:', error);
+                    // 降级到 localStorage
+                    this.saveFavoriteToLocalStorage(favoriteData, wasFavorited);
+                }
+            },
+            
+            async removeFavorite(favoriteId) {
+                if (this.useFirestore()) {
+                    await this.removeFavoriteFromFirestore(favoriteId);
+                } else {
+                    this.removeFavoriteFromLocalStorage(favoriteId);
+                }
+            },
+            
+            removeFavoriteFromLocalStorage(favoriteId) {
+                const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+                const filtered = favorites.filter(fav => fav.id !== favoriteId);
+                localStorage.setItem('favoriteQuestions', JSON.stringify(filtered));
+            },
+            
+            async removeFavoriteFromFirestore(favoriteId) {
+                try {
+                    await firebase.firestore().collection('favorites').doc(favoriteId).delete();
+                } catch (error) {
+                    console.error('删除收藏失败:', error);
+                    // 降级到 localStorage
+                    this.removeFavoriteFromLocalStorage(favoriteId);
+                }
+            },
+            
+            // ========== 保存的 Prompt ==========
+            async getSavedPrompts() {
+                if (this.useFirestore()) {
+                    return await this.getSavedPromptsFromFirestore();
+                } else {
+                    return this.getSavedPromptsFromLocalStorage();
+                }
+            },
+            
+            getSavedPromptsFromLocalStorage() {
+                return JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+            },
+            
+            async getSavedPromptsFromFirestore() {
+                const user = firebase.auth().currentUser;
+                if (!user) return [];
+                
+                try {
+                    const snapshot = await firebase.firestore()
+                        .collection('savedPrompts')
+                        .where('userId', '==', user.uid)
+                        .orderBy('createdAt', 'desc')
+                        .get();
+                    
+                    return snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            topic: data.topic || '',
+                            grade: data.grade || '',
+                            difficulty: data.difficulty || '',
+                            number: data.number || '1',
+                            requirements: data.requirements || '',
+                            selectedTags: data.selectedTags || [],
+                            title: data.title || '',
+                            createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString()
+                        };
+                    });
+                } catch (error) {
+                    console.error('读取 Prompt 失败:', error);
+                    // 降级到 localStorage
+                    return this.getSavedPromptsFromLocalStorage();
+                }
+            },
+            
+            async savePrompt(promptData) {
+                if (this.useFirestore()) {
+                    await this.savePromptToFirestore(promptData);
+                } else {
+                    this.savePromptToLocalStorage(promptData);
+                }
+            },
+            
+            savePromptToLocalStorage(promptData) {
+                const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+                savedPrompts.unshift(promptData);
+                localStorage.setItem('savedPrompts', JSON.stringify(savedPrompts));
+            },
+            
+            async savePromptToFirestore(promptData) {
+                const user = firebase.auth().currentUser;
+                if (!user) throw new Error('用户未登录');
+                
+                try {
+                    await firebase.firestore().collection('savedPrompts').add({
+                        userId: user.uid,
+                        topic: promptData.topic,
+                        grade: promptData.grade || '',
+                        difficulty: promptData.difficulty || '',
+                        number: promptData.number || '1',
+                        requirements: promptData.requirements || '',
+                        selectedTags: promptData.selectedTags || [],
+                        title: promptData.title,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (error) {
+                    console.error('保存 Prompt 失败:', error);
+                    // 降级到 localStorage
+                    this.savePromptToLocalStorage(promptData);
+                }
+            },
+            
+            async removePrompt(promptId) {
+                if (this.useFirestore()) {
+                    await this.removePromptFromFirestore(promptId);
+                } else {
+                    this.removePromptFromLocalStorage(promptId);
+                }
+            },
+            
+            removePromptFromLocalStorage(promptId) {
+                const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+                const filtered = savedPrompts.filter(p => p.id !== promptId);
+                localStorage.setItem('savedPrompts', JSON.stringify(filtered));
+            },
+            
+            async removePromptFromFirestore(promptId) {
+                try {
+                    await firebase.firestore().collection('savedPrompts').doc(promptId).delete();
+                } catch (error) {
+                    console.error('删除 Prompt 失败:', error);
+                    // 降级到 localStorage
+                    this.removePromptFromLocalStorage(promptId);
+                }
+            }
+        };
+        
+        // ============================================
         // 配置API基础URL
+        // ============================================
         const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'http://localhost:5000'  // 本地开发环境
             : '';  // 生产环境（Render）使用相对路径
@@ -264,9 +618,9 @@
             }
         }
 
-        // 从localStorage加载用户偏好
-        function loadUserPreferences() {
-            const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+        // 从 DataService 加载用户偏好
+        async function loadUserPreferences() {
+            const preferences = await DataService.getUserPreferences();
             const tagContainer = document.getElementById('tagContainer');
             tagContainer.innerHTML = '';
             
@@ -397,7 +751,7 @@
                     favoriteBtn.innerHTML = '<span class="favorite-btn-icon">♡</span> <span>Add to Favorites</span>';
                     
                     // 检查是否已收藏（通过问题文本的前200个字符匹配）
-                    const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
+                    const favorites = await DataService.getFavorites();
                     const currentProblemHash = data.problem.substring(0, 200).trim();
                     const isFavorited = favorites.some(fav => {
                         const favProblemHash = fav.problem.substring(0, 200).trim();
@@ -410,9 +764,9 @@
                     }
                     
                     // 收藏按钮点击事件
-                    favoriteBtn.addEventListener('click', function() {
+                    favoriteBtn.addEventListener('click', async function() {
                         const wasFavorited = this.classList.contains('favorited');
-                        saveToFavorites(data, wasFavorited);
+                        await saveToFavorites(data, wasFavorited);
                         this.classList.toggle('favorited');
                         if (this.classList.contains('favorited')) {
                             this.innerHTML = '<span class="favorite-btn-icon">♥</span> <span>Favorited</span>';
@@ -420,7 +774,7 @@
                             this.innerHTML = '<span class="favorite-btn-icon">♡</span> <span>Add to Favorites</span>';
                         }
                         // 更新收藏列表
-                        loadFavoritesList();
+                        await loadFavoritesList();
                     });
                     
                     favoriteBtnContainer.appendChild(favoriteBtn);
@@ -522,20 +876,20 @@
             document.getElementById('showTagInputBtn').style.display = 'block';
         }
 
-        function saveTagsToLocalStorage() {
+        async function saveTagsToLocalStorage() {
             const tags = Array.from(document.querySelectorAll('.tag'))
                 .map(tag => tag.textContent);
             
             // 获取现有的用户偏好
-            const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+            const preferences = await DataService.getUserPreferences();
             
             // 更新所有问题的标签
             preferences.question1 = tags.join(', ');
             preferences.question2 = tags.join(', ');
             preferences.question3 = tags.join(', ');
             
-            // 保存回localStorage
-            localStorage.setItem('userPreferences', JSON.stringify(preferences));
+            // 保存到 DataService（自动选择 Firestore 或 localStorage）
+            await DataService.saveUserPreferences(preferences);
         }
 
         // 初始化标签输入功能
@@ -588,7 +942,7 @@
 
         // 将 onclick 事件监听器添加到按钮
         document.getElementById('generateBtn').addEventListener('click', generateProblems);
-        
+
         // ============================================
         // Save Prompt 功能
         // ============================================
@@ -596,7 +950,7 @@
         /**
          * 保存当前 Prompt 设置
          */
-        function savePromptSettings() {
+        async function savePromptSettings() {
             const topic = document.getElementById('topic').value;
             const grade = document.getElementById('grade').value;
             const difficulty = document.getElementById('difficulty').value;
@@ -612,7 +966,7 @@
             
             // 创建 Prompt 设置对象
             const promptSettings = {
-                id: Date.now().toString(), // 使用时间戳作为唯一ID
+                id: Date.now().toString(), // 使用时间戳作为唯一ID（仅用于 localStorage）
                 topic: topic,
                 grade: grade || '',
                 difficulty: difficulty || '',
@@ -623,30 +977,29 @@
                 createdAt: new Date().toISOString()
             };
             
-            // 从 localStorage 读取已保存的 Prompts
-            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
-            
-            // 添加到列表开头
-            savedPrompts.unshift(promptSettings);
-            
-            // 保存到 localStorage
-            localStorage.setItem('savedPrompts', JSON.stringify(savedPrompts));
-            
-            console.log('Prompt 设置已保存:', promptSettings);
-            
-            // 显示保存成功提示
-            const saveBtn = document.getElementById('savePromptBtn');
-            const originalText = saveBtn.textContent;
-            saveBtn.textContent = 'Saved!';
-            saveBtn.style.color = 'var(--success-green)';
-            
-            setTimeout(() => {
-                saveBtn.textContent = originalText;
-                saveBtn.style.color = '';
-            }, 2000);
-            
-            // 更新 Prompt 列表
-            loadPromptsList();
+            try {
+                // 使用 DataService 保存（自动选择 Firestore 或 localStorage）
+                await DataService.savePrompt(promptSettings);
+                
+                console.log('Prompt 设置已保存:', promptSettings);
+                
+                // 显示保存成功提示
+                const saveBtn = document.getElementById('savePromptBtn');
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Saved!';
+                saveBtn.style.color = 'var(--success-green)';
+                
+                setTimeout(() => {
+                    saveBtn.textContent = originalText;
+                    saveBtn.style.color = '';
+                }, 2000);
+                
+                // 更新 Prompt 列表
+                await loadPromptsList();
+            } catch (error) {
+                console.error('保存 Prompt 失败:', error);
+                alert('保存失败，请重试。');
+            }
         }
         
         /**
@@ -666,64 +1019,70 @@
         /**
          * 加载 Prompt 列表
          */
-        function loadPromptsList() {
+        async function loadPromptsList() {
             const promptsList = document.getElementById('promptsList');
-            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
             
             // 清空列表
             promptsList.innerHTML = '';
             
-            if (savedPrompts.length === 0) {
-                promptsList.innerHTML = '<div class="favorites-empty">No saved prompts</div>';
-                return;
+            try {
+                const savedPrompts = await DataService.getSavedPrompts();
+                
+                if (savedPrompts.length === 0) {
+                    promptsList.innerHTML = '<div class="favorites-empty">No saved prompts</div>';
+                    return;
+                }
+                
+                // 显示 Prompt 列表
+                savedPrompts.forEach(prompt => {
+                    const item = document.createElement('div');
+                    item.className = 'favorite-item';
+                    item.dataset.promptId = prompt.id;
+                    
+                    const date = new Date(prompt.createdAt);
+                    const dateStr = date.toLocaleDateString('zh-CN', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                    
+                    item.innerHTML = `
+                        <div class="favorite-item-content">
+                            <div class="favorite-item-title">${prompt.title}</div>
+                            <div class="favorite-item-date">${dateStr}</div>
+                        </div>
+                        <button class="favorite-item-delete" data-prompt-id="${prompt.id}" title="删除">✕</button>
+                    `;
+                    
+                    // 点击 Prompt 项，显示详情
+                    item.addEventListener('click', function(e) {
+                        // 如果点击的是删除按钮，不显示详情
+                        if (e.target.classList.contains('favorite-item-delete')) {
+                            return;
+                        }
+                        e.stopPropagation(); // 阻止事件冒泡到父级
+                        showPromptDetail(prompt);
+                        // 添加激活状态
+                        document.querySelectorAll('#promptsList .favorite-item').forEach(i => i.classList.remove('active'));
+                        this.classList.add('active');
+                        closeSidebar();
+                    });
+                    
+                    // 删除按钮点击事件
+                    const deleteBtn = item.querySelector('.favorite-item-delete');
+                    deleteBtn.addEventListener('click', function(e) {
+                        e.stopPropagation(); // 阻止事件冒泡
+                        if (confirm('确定要删除这个 Prompt 吗？')) {
+                            removePrompt(prompt.id);
+                        }
+                    });
+                    
+                    promptsList.appendChild(item);
+                });
+            } catch (error) {
+                console.error('加载 Prompt 列表失败:', error);
+                promptsList.innerHTML = '<div class="favorites-empty">Failed to load prompts</div>';
             }
-            
-            // 显示 Prompt 列表
-            savedPrompts.forEach(prompt => {
-                const item = document.createElement('div');
-                item.className = 'favorite-item';
-                item.dataset.promptId = prompt.id;
-                
-                const date = new Date(prompt.createdAt);
-                const dateStr = date.toLocaleDateString('zh-CN', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
-                });
-                
-                item.innerHTML = `
-                    <div class="favorite-item-content">
-                        <div class="favorite-item-title">${prompt.title}</div>
-                        <div class="favorite-item-date">${dateStr}</div>
-                    </div>
-                    <button class="favorite-item-delete" data-prompt-id="${prompt.id}" title="删除">✕</button>
-                `;
-                
-                // 点击 Prompt 项，显示详情
-                item.addEventListener('click', function(e) {
-                    // 如果点击的是删除按钮，不显示详情
-                    if (e.target.classList.contains('favorite-item-delete')) {
-                        return;
-                    }
-                    e.stopPropagation(); // 阻止事件冒泡到父级
-                    showPromptDetail(prompt);
-                    // 添加激活状态
-                    document.querySelectorAll('#promptsList .favorite-item').forEach(i => i.classList.remove('active'));
-                    this.classList.add('active');
-                    closeSidebar();
-                });
-                
-                // 删除按钮点击事件
-                const deleteBtn = item.querySelector('.favorite-item-delete');
-                deleteBtn.addEventListener('click', function(e) {
-                    e.stopPropagation(); // 阻止事件冒泡
-                    if (confirm('确定要删除这个 Prompt 吗？')) {
-                        removePrompt(prompt.id);
-                    }
-                });
-                
-                promptsList.appendChild(item);
-            });
         }
         
         /**
@@ -811,15 +1170,16 @@
         /**
          * 导入 Prompt 设置
          */
-        function importPromptSettings() {
+        async function importPromptSettings() {
             const promptId = document.getElementById('promptDetailModalOverlay').dataset.currentPromptId;
-            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
-            const prompt = savedPrompts.find(p => p.id === promptId);
-            
-            if (!prompt) {
-                alert('Prompt 设置未找到');
-                return;
-            }
+            try {
+                const savedPrompts = await DataService.getSavedPrompts();
+                const prompt = savedPrompts.find(p => p.id === promptId);
+                
+                if (!prompt) {
+                    alert('Prompt 设置未找到');
+                    return;
+                }
             
             // 导入设置到各个输入框
             if (prompt.topic) {
@@ -858,13 +1218,17 @@
                     tagContainer.appendChild(tagElement);
                 });
                 
-                // 保存标签到 localStorage
-                saveTagsToLocalStorage();
+                // 保存标签到 DataService
+                await saveTagsToLocalStorage();
             }
             
-            console.log('Prompt 设置已导入:', prompt);
-            alert('Prompt 设置已导入！');
-            closePromptDetailModal();
+                console.log('Prompt 设置已导入:', prompt);
+                alert('Prompt 设置已导入！');
+                closePromptDetailModal();
+            } catch (error) {
+                console.error('导入 Prompt 设置失败:', error);
+                alert('导入失败，请重试。');
+            }
         }
         
         /**
@@ -879,16 +1243,19 @@
         /**
          * 删除 Prompt
          */
-        function removePrompt(promptId) {
-            const savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
-            const filtered = savedPrompts.filter(p => p.id !== promptId);
-            localStorage.setItem('savedPrompts', JSON.stringify(filtered));
-            loadPromptsList();
-            
-            // 如果当前显示的是被删除的 Prompt，关闭模态框
-            const currentPromptId = document.getElementById('promptDetailModalOverlay').dataset.currentPromptId;
-            if (currentPromptId === promptId) {
-                closePromptDetailModal();
+        async function removePrompt(promptId) {
+            try {
+                await DataService.removePrompt(promptId);
+                await loadPromptsList();
+                
+                // 如果当前显示的是被删除的 Prompt，关闭模态框
+                const currentPromptId = document.getElementById('promptDetailModalOverlay').dataset.currentPromptId;
+                if (currentPromptId === promptId) {
+                    closePromptDetailModal();
+                }
+            } catch (error) {
+                console.error('删除 Prompt 失败:', error);
+                alert('删除失败，请重试。');
             }
         }
         
@@ -910,10 +1277,12 @@
             }
         });
 
-        // 页面加载时加载用户偏好和Prompt列表（不再强制跳转）
+        // 页面加载时：不要立即拉取 Firestore（此时 firebase.auth().currentUser 可能还是 null）
+        // 我们会在 onAuthStateChanged 确认登录状态后再加载 Firestore 数据。
         window.onload = function() {
+            // 先加载本地标签（未登录也可用）
             loadUserPreferences();
-            loadPromptsList(); // 加载 Prompt 列表
+            // Prompts / Favorites 由 auth 初始化后统一加载
         };
 
         // ============================================
@@ -994,9 +1363,9 @@
                 user = firebase.auth().currentUser;
             }
             
-            // 如果未登录，跳转到登录页面
+            // 如果未登录，弹出提示模态框（而不是直接跳转）
             if (!user) {
-                window.location.href = '/login';
+                openAccountGuestModal();
                 return;
             }
             
@@ -1019,6 +1388,24 @@
             document.body.style.overflow = 'hidden';
         }
         
+        /**
+         * 未登录提示模态框：打开
+         */
+        function openAccountGuestModal() {
+            const overlay = document.getElementById('accountGuestModalOverlay');
+            overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        /**
+         * 未登录提示模态框：关闭
+         */
+        function closeAccountGuestModal() {
+            const overlay = document.getElementById('accountGuestModalOverlay');
+            overlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
         /**
          * 关闭账户信息模态框
          */
@@ -1074,9 +1461,9 @@
         /**
          * 打开兴趣偏好模态框
          */
-        function openInterestModal() {
-            // 从 localStorage 读取用户偏好（Personalization页面存储的内容）
-            const preferences = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+        async function openInterestModal() {
+            // 从 DataService 读取用户偏好（Personalization页面存储的内容）
+            const preferences = await DataService.getUserPreferences();
             
             // 清空内容区域
             const interestContent = document.getElementById('interestContent');
@@ -1154,6 +1541,23 @@
         accountModalOverlay.addEventListener('click', function(e) {
             if (e.target === accountModalOverlay) {
                 closeAccountModal();
+            }
+        });
+
+        // 未登录提示模态框事件
+        const accountGuestModalOverlay = document.getElementById('accountGuestModalOverlay');
+        const accountGuestModalClose = document.getElementById('accountGuestModalClose');
+        const accountGuestModalCancel = document.getElementById('accountGuestModalCancel');
+        const accountGuestModalLogin = document.getElementById('accountGuestModalLogin');
+
+        accountGuestModalClose.addEventListener('click', closeAccountGuestModal);
+        accountGuestModalCancel.addEventListener('click', closeAccountGuestModal);
+        accountGuestModalLogin.addEventListener('click', function() {
+            window.location.href = '/login';
+        });
+        accountGuestModalOverlay.addEventListener('click', function(e) {
+            if (e.target === accountGuestModalOverlay) {
+                closeAccountGuestModal();
             }
         });
         
@@ -1255,42 +1659,15 @@
          * @param {Object} data - 问题数据 {problem, hints, solution, answer}
          * @param {Boolean} wasFavorited - 是否已经收藏（用于切换状态）
          */
-        function saveToFavorites(data, wasFavorited = false) {
-            const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
-            
-            // 检查是否已存在（通过问题前200个字符判断）
-            const problemHash = data.problem.substring(0, 200).trim();
-            const existingIndex = favorites.findIndex(fav => {
-                const favProblemHash = fav.problem.substring(0, 200).trim();
-                return favProblemHash === problemHash;
-            });
-            
-            if (wasFavorited || existingIndex !== -1) {
-                // 如果已存在，移除收藏
-                if (existingIndex !== -1) {
-                    favorites.splice(existingIndex, 1);
-                }
-                console.log('已取消收藏');
-            } else {
-                // 如果不存在，添加收藏
-                const favoriteItem = {
-                    id: Date.now().toString(), // 使用时间戳作为唯一ID
-                    problem: data.problem,
-                    hints: data.hints || '',
-                    solution: data.solution || '',
-                    answer: data.answer || '',
-                    title: getProblemTitle(data.problem), // 提取问题标题
-                    createdAt: new Date().toISOString()
-                };
-                favorites.unshift(favoriteItem); // 添加到开头
-                console.log('已添加到收藏');
+        async function saveToFavorites(data, wasFavorited = false) {
+            try {
+                await DataService.saveFavorite(data, wasFavorited);
+                // 更新收藏列表
+                await loadFavoritesList();
+            } catch (error) {
+                console.error('保存收藏失败:', error);
+                alert('保存收藏失败，请重试。');
             }
-            
-            // 保存到 localStorage
-            localStorage.setItem('favoriteQuestions', JSON.stringify(favorites));
-            
-            // 更新收藏列表
-            loadFavoritesList();
         }
         
         /**
@@ -1308,19 +1685,20 @@
         /**
          * 加载收藏列表
          */
-        function loadFavoritesList() {
-            const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
-            
+        async function loadFavoritesList() {
             // 清空列表
             favoritesList.innerHTML = '';
             
-            if (favorites.length === 0) {
-                favoritesList.innerHTML = '<div class="favorites-empty">No favorites</div>';
-                return;
-            }
-            
-            // 显示收藏列表
-            favorites.forEach(favorite => {
+            try {
+                const favorites = await DataService.getFavorites();
+                
+                if (favorites.length === 0) {
+                    favoritesList.innerHTML = '<div class="favorites-empty">No favorites</div>';
+                    return;
+                }
+                
+                // 显示收藏列表
+                favorites.forEach(favorite => {
                 const item = document.createElement('div');
                 item.className = 'favorite-item';
                 item.dataset.favoriteId = favorite.id;
@@ -1364,7 +1742,11 @@
                 });
                 
                 favoritesList.appendChild(item);
-            });
+                });
+            } catch (error) {
+                console.error('加载收藏列表失败:', error);
+                favoritesList.innerHTML = '<div class="favorites-empty">Failed to load favorites</div>';
+            }
         }
         
         /**
@@ -1402,9 +1784,9 @@
                     favoriteBtn.className = 'favorite-btn favorited';
                     favoriteBtn.id = 'favoriteBtn';
                     favoriteBtn.innerHTML = '<span class="favorite-btn-icon">♥</span> <span>Favorited</span>';
-                    favoriteBtn.addEventListener('click', function() {
+                    favoriteBtn.addEventListener('click', async function() {
                         // 重新保存以切换收藏状态
-                        saveToFavorites({
+                        await saveToFavorites({
                             problem: favorite.problem,
                             hints: favorite.hints,
                             solution: favorite.solution,
@@ -1416,7 +1798,7 @@
                         } else {
                             this.innerHTML = '<span class="favorite-btn-icon">♡</span> <span>Add to Favorites</span>';
                         }
-                        loadFavoritesList();
+                        await loadFavoritesList();
                     });
                     favoriteBtnContainer.appendChild(favoriteBtn);
                 } else {
@@ -1485,27 +1867,52 @@
         /**
          * 删除收藏
          */
-        function removeFavorite(favoriteId) {
-            const favorites = JSON.parse(localStorage.getItem('favoriteQuestions') || '[]');
-            const filtered = favorites.filter(fav => fav.id !== favoriteId);
-            localStorage.setItem('favoriteQuestions', JSON.stringify(filtered));
-            loadFavoritesList();
-            
-            // 如果当前显示的是被删除的问题，清空显示
-            const currentFavoriteId = document.querySelector('.favorite-item.active')?.dataset.favoriteId;
-            if (currentFavoriteId === favoriteId) {
-                document.getElementById('result').innerHTML = '';
-                document.getElementById('hintSection').innerHTML = '';
-                document.getElementById('solutionSection').innerHTML = '';
-                document.getElementById('favoriteBtnContainer').innerHTML = '';
+        async function removeFavorite(favoriteId) {
+            try {
+                await DataService.removeFavorite(favoriteId);
+                await loadFavoritesList();
+                
+                // 如果当前显示的是被删除的问题，清空显示
+                const currentFavoriteId = document.querySelector('.favorite-item.active')?.dataset.favoriteId;
+                if (currentFavoriteId === favoriteId) {
+                    document.getElementById('result').innerHTML = '';
+                    document.getElementById('hintSection').innerHTML = '';
+                    document.getElementById('solutionSection').innerHTML = '';
+                    document.getElementById('favoriteBtnContainer').innerHTML = '';
+                }
+            } catch (error) {
+                console.error('删除收藏失败:', error);
+                alert('删除失败，请重试。');
             }
         }
         
-        // 页面加载时加载收藏列表
-        window.addEventListener('load', function() {
-            loadFavoritesList();
-            loadPromptsList(); // 加载 Prompt 列表
-        });
+        // Firebase Auth 状态确认后再加载 Firestore / localStorage 数据
+        // 解决“换设备登录后数据不显示”的问题：避免 currentUser 还没恢复就误用 localStorage。
+        function initDataAfterAuthReady() {
+            if (typeof firebase === 'undefined' || !firebase.auth) {
+                // Firebase 不可用时，退回 localStorage
+                loadFavoritesList();
+                loadPromptsList();
+                return;
+            }
+
+            firebase.auth().onAuthStateChanged(async (user) => {
+                // 此回调触发时，Firebase 已完成登录态恢复
+                console.log('[AuthReady] user =', user ? user.email : null);
+
+                // 重新加载三类数据（会自动走 Firestore 或 localStorage）
+                try {
+                    await loadUserPreferences();
+                    await loadPromptsList();
+                    await loadFavoritesList();
+                } catch (e) {
+                    console.error('初始化数据失败:', e);
+                }
+            });
+        }
+
+        // 页面加载后注册 auth-ready 初始化
+        window.addEventListener('load', initDataAfterAuthReady);
         
         // ESC 键关闭侧边栏
         document.addEventListener('keydown', function(e) {
